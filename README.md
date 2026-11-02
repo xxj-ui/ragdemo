@@ -2,9 +2,10 @@
 
 单用户、仅本机运行的 Web 知识库问答：批量上传文档 → 基于知识库提问 → 流式回答 + 引用来源 → 历史回看。
 
-> **当前状态**：**设计已定稿，Web 层与前端尚未开始**。
-> 已具备：RAG 内核（解析 / 切分 / 嵌入 / BM25 / RRF / DeepSeek 流式）+ 4 张表已落地 + 建表脚本 + 完整设计文档。
-> 下一步：M1（`server/app.py`、`config.py`、`errors.py`、仓储层、8 个路由骨架）。
+> **当前状态**：**设计已定稿 + 前后端骨架已搭建，业务逻辑待实现**。
+> 已具备：RAG 内核（解析 / 切分 / 嵌入 / BM25 / RRF / DeepSeek 流式）+ 4 张表已落地 + 建表脚本 + 完整设计文档（01~08）+ FastAPI 骨架（8 个接口已注册、统一信封、错误码、请求体上限）+ React/Vite/TS 前端骨架（可构建、Vite 代理已打通）。
+> **接口目前统一返回 `501 NOT_IMPLEMENTED`**，这是骨架期的预期行为。
+> 下一步：M1（`config` 参数落地 → 仓储层实现 → 文档管理 3 个接口真正可用）。
 
 ## 环境要求
 
@@ -56,7 +57,8 @@ python -m server.main --ask "问题"            # 检索 + 大模型回答
 
 ```text
 ragdemo/
-├── server/          # 后端单包：领域内核 + （M1 起）Web 层
+├── server/          # 后端单包：领域内核 + Web 层（app/routes/service/仓储）
+├── web/             # 前端：React + Vite + TS（骨架）
 ├── docs/            # 需求、SRS、设计 01~06、规范
 ├── prototype/       # 高保真原型（交互蓝本，只读参照）
 ├── scripts/         # sql/schema.sql、run_dev.*、run_web.*
