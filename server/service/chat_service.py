@@ -13,6 +13,10 @@ from typing import Any, AsyncIterator
 
 
 async def ask_stream(container: Any, question: str) -> AsyncIterator[bytes]:
-    """返回 SSE 字节流（已编码好 `event: ...\ndata: ...\n\n`）。"""
+    """返回 SSE 字节流（每个事件已编码为 `event:` 行 + `data:` 行 + 空行）。
+
+    注意：本函数是**协程**（await 后得到异步迭代器），不是异步生成器 ——
+    这样"未实现"能在路由层立刻抛出、被统一转成 501，而不是等流建立后才失败。
+    M2 实现时先完成检索与引用组装，再把内层异步生成器返回出去。
+    """
     raise NotImplementedError("M2 实现：检索 → 引用 → 流式生成 → 落库")
-    yield b""  # pragma: no cover  —— 让类型检查知道这是异步生成器
