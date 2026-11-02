@@ -9,6 +9,7 @@
 """
 
 import os
+from contextlib import contextmanager
 
 TABLE_NAME = "rag_chunks"
 
@@ -48,73 +49,6 @@ class PgChunkRepository:
     # ------------------------------------------------------------------
     # 建表
     # ------------------------------------------------------------------
-
-    def init_table(self, dim: int = 512) -> None:
-        """创建扩展、表和向量索引（已存在则跳过）。"""
-        if not isinstance(dim, int) or dim <= 0:
-            raise ValueError(f"非法的向量维度: {dim}")
-
-        with self._connect() as conn:
-            conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            conn.execute(f"""
-                CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
-                    id          bigserial PRIMARY KEY,
-                    source      text NOT NULL,
-                    page        text,
-                    chunk_index integer,
-                    content     text NOT NULL,
-                    embedding   vector({dim})
-                )
-            """)
-            # HNSW 索引：数据量大时加速检索；几百条数据加不加都行
-            conn.execute(f"""
-                CREATE INDEX IF NOT EXISTS {TABLE_NAME}_embedding_idx
-                ON {TABLE_NAME} USING hnsw (embedding vector_cosine_ops)
-            """)
-
-    # ------------------------------------------------------------------
-    # 写入
-    # ------------------------------------------------------------------
-
-    def insert_chunks(
-        self,
-        chunks: list[dict],
-        vectors: list[list[float]],
-        batch_size: int = 100,
-    ) -> int:
-        """批量写入。chunks 和 vectors 必须一一对应。"""
-        if len(chunks) != len(vectors):
-            raise ValueError(
-                f"chunk 数量({len(chunks)}) 和 向量数量({len(vectors)}) 不一致"
-            )
-        if not chunks:
-            return 0
-
-        dim = len(vectors[0])
-        for i, v in enumerate(vectors):
-            if len(v) != dim:
-                raise ValueError(f"第 {i} 条向量维度是 {len(v)}，与第一条({dim})不一致")
-
-        rows = [
-            (
-                chunk.get("source"),
-                None if chunk.get("page") is None else str(chunk.get("page")),
-                chunk.get("chunk_index"),
-                chunk["text"],
-                _to_vector_literal(vector),
-            )
-            for chunk, vector in zip(chunks, vectors)
-        ]
-
-        sql = f"""
-            INSERT INTO {TABLE_NAME}
-                (source, page, chunk_index, content, embedding)
-            VALUES (%s, %s, %s, %s, %s::vector)
-        """
-        with self._connect() as conn:
-            with conn.cursor() as cur:
-                cur.executemany(sql, rows, returning=False)
-        return len(rows)
 
     def delete_by_source(self, source: str) -> int:
         """删除某个文件的旧数据（重新建库时用，保证幂等）。"""
@@ -190,3 +124,56 @@ class PgChunkRepository:
         with self._connect() as conn:
             row = conn.execute(f"SELECT count(*) FROM {TABLE_NAME}").fetchone()
         return row[0]
+
+
+    # ------------------------------------------------------------------
+    # 按文档维度写入（M1：documents 表引入 document_id 之后）
+    # ------------------------------------------------------------------
+    @contextmanager
+    def _using(self, conn=None):
+        """复用外部事务连接；未传入则自开连接。"""
+        if conn is not None:
+            yield conn
+            return
+        with self._connect() as own:
+            yield own
+
+    def insert_for_document(
+        self,
+        document_id: int,
+        source: str,
+        rows: list[dict],
+        vectors: list[list[float]],
+        conn=None,
+    ) -> int:
+        """给某个文档批量写入片段；rows 元素形如 {"text","page","chunk_index"}。"""
+        if len(rows) != len(vectors):
+            raise ValueError(f"片段数({len(rows)})与向量数({len(vectors)})不一致")
+        if not rows:
+            return 0
+        params = [
+            (
+                document_id,
+                source,
+                None if row.get("page") is None else str(row["page"]),
+                row["chunk_index"],
+                row["text"],
+                _to_vector_literal(vector),
+            )
+            for row, vector in zip(rows, vectors)
+        ]
+        sql = f"""
+            INSERT INTO {TABLE_NAME}
+                (document_id, source, page, chunk_index, content, embedding)
+            VALUES (%s, %s, %s, %s, %s, %s::vector)
+        """
+        with self._using(conn) as c:
+            with c.cursor() as cur:
+                cur.executemany(sql, params)
+        return len(params)
+
+    def delete_by_document(self, document_id: int, conn=None) -> int:
+        """删除某文档的全部片段（BR-3：先删片段，再删文档行）。"""
+        with self._using(conn) as c:
+            cur = c.execute(f"DELETE FROM {TABLE_NAME} WHERE document_id = %s", (document_id,))
+            return cur.rowcount

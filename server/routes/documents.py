@@ -5,7 +5,7 @@ from fastapi import APIRouter, File, UploadFile
 
 from server.deps import get_container
 from server.errors import AppError
-from server.schemas import DocumentList, Envelope, UploadResult
+from server.schemas import DocumentList, Envelope, UploadItem, UploadResult
 from server.service import document_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -16,7 +16,8 @@ async def upload_document(files: list[UploadFile] = File(..., description="长�
     if len(files) != 1:
         raise AppError("TOO_MANY_FILES")
     result = await document_service.upload(get_container(), files[0])
-    return Envelope(data=UploadResult(**result))
+    # 每次请求只处理 1 个文件，但仍然按 04 的 items[] 结构返回（前端逐行渲染）
+    return Envelope(data=UploadResult(items=[UploadItem(**result)]))
 
 
 @router.get("", response_model=Envelope[DocumentList], summary="文档列表（全量，不分页）")

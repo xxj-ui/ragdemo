@@ -136,8 +136,14 @@ def split_documents(
     overlap: int = 100,
     min_size: int = 80,
 ) -> list[dict]:
-    """对 loaders 的输出整体切分，并把 source / page 合并到每个 chunk 上。"""
+    """对 loaders 的输出整体切分，并把 source / page 合并到每个 chunk 上。
+
+    `chunk_index` 在**整篇文档内连续编号**（不按页归零）：`rag_chunks` 的唯一约束是
+    `(document_id, chunk_index)`，多页 PDF 若每页从 0 开始会撞唯一键（M1 实测踩过）。
+    页号保留在 `page` 列，不靠 chunk_index 表达。
+    """
     result = []
+    cursor = 0
     for doc in docs:
         parts = split_chunk(
             doc.get("text", ""),
@@ -145,13 +151,14 @@ def split_documents(
             overlap=overlap,
             min_size=min_size,
         )
-        for index, part in enumerate(parts):
+        for part in parts:
             result.append({
                 "text": part["text"],
                 "source": doc.get("source"),
                 "page": doc.get("page"),
-                "chunk_index": index,
+                "chunk_index": cursor,
                 "start": part["start"],
                 "end": part["end"],
             })
+            cursor += 1
     return result

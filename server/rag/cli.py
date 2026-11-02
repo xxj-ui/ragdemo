@@ -10,6 +10,7 @@
 
 import sys
 import time
+from pathlib import Path
 
 from .loaders import load_all
 from .splitter import split_documents
@@ -61,43 +62,77 @@ def build_index(
     overlap: int = 100,
     batch_size: int = 32,
 ) -> int:
-    # 延迟导入：预览模式下不需要模型库和数据库驱动
+    """按文件逐个入库，写入路径与 HTTP 上传一致（documents + rag_chunks 同事务）。
+
+    不再自建表：DDL 只有 scripts/sql/schema.sql 一处（02 §4.3 / 03 §2）。
+    """
+    from psycopg.rows import dict_row
+    import psycopg
+
+    from ..config import PROJECT_ROOT
+    from ..document_repository import DocumentRepository
     from .chunk_repository import PgChunkRepository
     from .embedder import embed_documents
+    from .loaders import LOADERS, load
 
-    t0 = time.perf_counter()
-
-    documents = load_all(path)
-    chunks = split_documents(documents, size=size, overlap=overlap)
-    print(f"加载 {len(documents)} 个文档单元，切出 {len(chunks)} 个 chunk")
-
-    if not chunks:
-        print("没有可入库的内容")
-        return 0
-
-    t1 = time.perf_counter()
-    vectors = embed_documents(
-        [c["text"] for c in chunks],
-        batch_size=batch_size,
-        show_progress=True,
-    )
-    t2 = time.perf_counter()
-    print(f"向量化完成：{len(vectors)} 条，维度 {len(vectors[0])}，耗时 {t2 - t1:.1f}s")
+    root = Path(path)
+    if root.is_file():
+        files = [root]
+    elif root.is_dir():
+        files = [f for f in sorted(root.rglob("*")) if f.is_file() and f.suffix.lower() in LOADERS]
+    else:
+        raise FileNotFoundError(f"路径不存在: {root}")
 
     repo = PgChunkRepository()
-    repo.init_table(dim=len(vectors[0]))
+    doc_repo = DocumentRepository(repo.dsn)
 
-    # 同一份文件重复入库时，先删旧数据，保证幂等
-    for source in sorted({c["source"] for c in chunks}):
-        deleted = repo.delete_by_source(source)
-        if deleted:
-            print(f"清除 {source} 的旧数据 {deleted} 条")
+    t0 = time.perf_counter()
+    total = 0
+    for f in files:
+        try:
+            docs = load(f)
+        except Exception as exc:
+            print(f"跳过 {f.name}：加载失败 {exc}")
+            continue
+        chunks = split_documents(docs, size=size, overlap=overlap)
+        if not chunks:
+            print(f"跳过 {f.name}：无可入库内容")
+            continue
 
-    inserted = repo.insert_chunks(chunks, vectors)
-    t3 = time.perf_counter()
-    print(f"入库完成：{inserted} 条，耗时 {t3 - t2:.1f}s")
-    print(f"表 {repo.count()} 条记录，总耗时 {t3 - t0:.1f}s")
-    return inserted
+        t1 = time.perf_counter()
+        vectors = embed_documents([c["text"] for c in chunks], batch_size=batch_size, show_progress=False)
+        t2 = time.perf_counter()
+
+        try:
+            stored_path = f.resolve().relative_to(PROJECT_ROOT).as_posix()
+        except ValueError:                      # 项目外文件，存绝对路径
+            stored_path = str(f.resolve())
+
+        suffix = f.suffix.lower()
+        with psycopg.connect(repo.dsn) as conn:
+            conn.row_factory = dict_row
+            existing = doc_repo.find_by_filename(f.name, conn=conn)
+            if existing is not None:
+                doc_id = existing["id"]
+                doc_repo.replace_meta(
+                    doc_id, filename=f.name, stored_path=stored_path,
+                    file_type=suffix.lstrip("."), file_size=f.stat().st_size, conn=conn,
+                )
+                repo.delete_by_document(doc_id, conn=conn)
+            else:
+                doc_id = doc_repo.insert(
+                    filename=f.name, stored_path=stored_path,
+                    file_type=suffix.lstrip("."), file_size=f.stat().st_size, conn=conn,
+                )
+            repo.insert_for_document(doc_id, f.name, chunks, vectors, conn=conn)
+            doc_repo.update_chunk_count(doc_id, len(chunks), conn=conn)
+
+        total += len(chunks)
+        print(f"入库 {f.name}：doc_id={doc_id} 片段={len(chunks)} 向量化={t2 - t1:.1f}s")
+
+    print(f"\n入库完成：{total} 条片段，总耗时 {time.perf_counter() - t0:.1f}s")
+    return total
+
 
 
 # ------------------------------------------------------------------
