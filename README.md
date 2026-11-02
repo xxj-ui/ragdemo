@@ -57,7 +57,9 @@ python -m server.main --ask "问题"            # 检索 + 大模型回答
 
 ```text
 ragdemo/
-├── server/          # 后端单包：领域内核 + Web 层（app/routes/service/仓储）
+├── server/          # 后端单包
+│   ├── rag/         #   领域内核：解析/切分/嵌入/检索/融合/生成/片段读写 + CLI
+│   └── …            #   Web 层：app/routes/service/装配/两个仓储
 ├── web/             # 前端：React + Vite + TS（骨架）
 ├── docs/            # 需求、SRS、设计 01~06、规范
 ├── prototype/       # 高保真原型（交互蓝本，只读参照）

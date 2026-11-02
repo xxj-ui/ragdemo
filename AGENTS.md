@@ -6,7 +6,7 @@
 
 - **目标**：本机单用户 Web 知识库问答（RAG），批量上传文档 + 基于知识库提问 + 引用来源 + 历史回看。
 - **技术栈**：FastAPI + PostgreSQL/pgvector + bge-small-zh-v1.5 + DeepSeek；前端 React + Vite + TS。
-- **现状**：RAG 内核（loaders / splitter / embedder / chunk_repository / keyword_search / rrf / llm）已跑通并全部收在 `server/` 单包，CLI 入口 `python -m server.main`；需求与设计已定稿：[SRS](docs/SRS.md) v0.7、[00 需求分析](docs/00.需求分析.md) v0.3、[01 功能模块](docs/design/01.功能模块梳理.md) v1.0、[02 整体架构](docs/design/02.整体架构设计.md) v0.8、[03 数据库](docs/design/03.数据库设计.md) v0.3、[04 API](docs/design/04.API接口设计.md) v0.5、[05 评审结果](docs/design/05.设计方案评审结果.md) v0.4、[06 遗留问题](docs/design/06.遗留问题清单.md) v0.3、[07 测试用例](docs/design/07.测试用例清单.md) v0.1、[08 性能基线](docs/design/08.性能基线实测.md) v0.1；数据库 4 张表已在真库 `ragdemo` 落地（0 行），`scripts/sql/schema.sql` 幂等可重跑；`requirements.txt` 与启动脚本已就绪；**前后端骨架已搭建**（`server/app.py` + 8 路由 + 4 服务 + 2 仓储；`web/` React+Vite+TS 可构建、Vite 代理打通），**业务逻辑尚未实现**（接口统一返回 501），下一步 M1。
+- **现状**：RAG 内核（loaders / splitter / embedder / chunk_repository / keyword_search / rrf / llm）已跑通并收在 `server/rag/` 子包（`server/` 内再分内核与 Web 层），CLI 入口 `python -m server.main`；需求与设计已定稿：[SRS](docs/SRS.md) v0.7、[00 需求分析](docs/00.需求分析.md) v0.3、[01 功能模块](docs/design/01.功能模块梳理.md) v1.0、[02 整体架构](docs/design/02.整体架构设计.md) v0.8、[03 数据库](docs/design/03.数据库设计.md) v0.3、[04 API](docs/design/04.API接口设计.md) v0.5、[05 评审结果](docs/design/05.设计方案评审结果.md) v0.4、[06 遗留问题](docs/design/06.遗留问题清单.md) v0.3、[07 测试用例](docs/design/07.测试用例清单.md) v0.1、[08 性能基线](docs/design/08.性能基线实测.md) v0.1；数据库 4 张表已在真库 `ragdemo` 落地（0 行），`scripts/sql/schema.sql` 幂等可重跑；`requirements.txt` 与启动脚本已就绪；**前后端骨架已搭建**（`server/app.py` + 8 路由 + 4 服务 + 2 仓储；`web/` React+Vite+TS 可构建、Vite 代理打通），**业务逻辑尚未实现**（接口统一返回 501），下一步 M1。
 - **权威文档**：
   - 需求分析：[docs/00.需求分析.md](docs/00.需求分析.md)（角色 / 场景 / 用例 / 优先级 / 追溯）
   - 需求规格：[docs/SRS.md](docs/SRS.md)（FR / NFR / BR / AC + 接口与数据契约）
@@ -118,3 +118,4 @@
 | --- | --- |
 | 2026-11-02 | 新增第 3 节「项目设计阶段规则」、第 5 节「数据库设计规则」、第 6 节「API 接口设计规则」；原架构设计（3→4）、编码（4→7）、测试与验收（5→8）、待拍板事项（6→9）顺延编号，正文内容未改。 |
 | 2026-11-02 | §0「现状」对齐到设计定稿状态（SRS v0.7、01~06 全部定稿、4 张表已落地）；§9 由「当前待拍板事项」改为「已裁决事项」，8 项全部给出结论与落点。规则条款未改动。 |
+| 2026-11-02 | §0 现状补记目录调整：RAG 内核收进 `server/rag/` 子包，CLI 入口保持 `python -m server.main`。 |

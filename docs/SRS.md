@@ -2,7 +2,7 @@
 
 | 项目名称 | 知识库问答系统（RAG Knowledge Base QA） |
 | --- | --- |
-| 文档版本 | v0.7（接口契约改为同构信封；上传改为单文件；删除类 204 → 200） |
+| 文档版本 | v0.8（后端内部目录：RAG 内核收进 `server/rag/` 子包） |
 | 编写日期 | 2026-10-30 |
 | 文档状态 | 待评审 |
 | 适用范围 | 需求确认、开发排期、验收测试 |
@@ -68,7 +68,7 @@
 
 ### 1.4 参考
 
-- 现有代码：`server/` 包内的 `loaders.py`、`splitter.py`、`embedder.py`、`chunk_repository.py`、`keyword_search.py`、`rrf.py`、`llm.py`
+- 现有代码：`server/rag/` 子包内的 `loaders.py`、`splitter.py`、`embedder.py`、`chunk_repository.py`、`keyword_search.py`、`rrf.py`、`llm.py`
 - 嵌入模型：`BAAI/bge-small-zh-v1.5`（512 维，本地缓存）
 - 大模型：DeepSeek `deepseek-chat`（OpenAI 兼容协议）
 - 向量库：PostgreSQL + pgvector
@@ -370,7 +370,7 @@ FastAPI 路由层（server/routes/）
   └── history 相关方法
         │
         ▼
-RAG 核心（同包 server/ 内的纯 Python 模块）
+RAG 核心（server/rag/ 子包内的纯 Python 模块）
   ├── loaders.py / splitter.py
   ├── embedder.py
   ├── chunk_repository.py
@@ -800,3 +800,4 @@ data: {"code": "LLM_TIMEOUT", "message": "大模型响应超时，请重试"}
 | v0.5 | 2026-11-02 | 新增 AC-13（上传 0 字节空文件 → 标记失败、不入库、不落盘），补齐 FR-1 异常表“空文件”规则缺失的验收项 | 00.需求分析.md O-1 |
 | v0.6 | 2026-11-02 | 后端目录口径改为 `server/` 单包（内核与 Web 层同包）：1.4 现有代码路径、2.1 与 5.1 分层图同步（服务层由 `ragdemo/service.py` 改为 `server/service/`，此前与 02 文档 §4.2 不一致） | [docs/design/02.整体架构设计.md](design/02.整体架构设计.md) v0.5 P-1 修订 |
 | v0.7 | 2026-11-02 | 按 04 契约回写 7 处：§7 开头响应格式改为同构信封 `{code,message,data}`（成功 `code="ok"`）；7.1 字段改为「每次 1 个文件」、失败 `error` 改为 `{code,message}`、响应示例包信封；7.2/7.5/7.6/7.8 示例包信封；7.3/7.7 删除成功 `204` → `200`（信封需 body）；7.4 补「无结果不发 `citations`」与「SSE 不套信封」；7.8 补齐四项状态枚举与「恒返 200」；8.4 上传中改为单态「处理中」 | [docs/design/04.API接口设计.md](design/04.API接口设计.md) v0.3、[05.设计方案评审结果](design/05.设计方案评审结果.md) P1-1 |
+| v0.8 | 2026-11-02 | 目录口径细化：RAG 内核由 `server/` 包内平铺改为 `server/rag/` 子包（1.4 现有代码路径、5.1 分层图同步）；接口、数据模型与业务规则无变化 | [docs/design/02.整体架构设计.md](design/02.整体架构设计.md) v0.10 |
