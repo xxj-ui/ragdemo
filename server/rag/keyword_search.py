@@ -129,6 +129,7 @@ class BM25KeywordSearch:
             {
                 "id": self._docs[i].get("id"),
                 "source": self._docs[i].get("source"),
+                "filename": self._docs[i].get("filename"),
                 "page": self._docs[i].get("page"),
                 "chunk_index": self._docs[i].get("chunk_index"),
                 "content": self._docs[i].get("content"),

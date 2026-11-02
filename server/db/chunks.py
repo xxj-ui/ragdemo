@@ -73,11 +73,14 @@ class PgChunkRepository:
             raise ValueError("top_k 必须大于 0")
 
         literal = _to_vector_literal(query_vector)
+        # filename 统一取 documents.filename（04 §7 数据映射），source 只作兜底
         sql = f"""
-            SELECT id, source, page, chunk_index, content,
-                   1 - (embedding <=> %s::vector) AS score
-            FROM {TABLE_NAME}
-            ORDER BY embedding <=> %s::vector
+            SELECT c.id, c.source, c.page, c.chunk_index, c.content,
+                   d.filename AS filename,
+                   1 - (c.embedding <=> %s::vector) AS score
+            FROM {TABLE_NAME} c
+            LEFT JOIN documents d ON d.id = c.document_id
+            ORDER BY c.embedding <=> %s::vector
             LIMIT %s
         """
         with self._connect() as conn:
@@ -90,7 +93,8 @@ class PgChunkRepository:
                 "page": row[2],
                 "chunk_index": row[3],
                 "content": row[4],
-                "score": float(row[5]),
+                "filename": row[5],
+                "score": float(row[6]),
             }
             for row in rows
         ]
@@ -98,9 +102,11 @@ class PgChunkRepository:
     def fetch_all(self) -> list[dict]:
         """读出全部 chunk（不带向量），给 BM25 这类内存索引使用。"""
         sql = f"""
-            SELECT id, source, page, chunk_index, content
-            FROM {TABLE_NAME}
-            ORDER BY id
+            SELECT c.id, c.source, c.page, c.chunk_index, c.content,
+                   d.filename AS filename
+            FROM {TABLE_NAME} c
+            LEFT JOIN documents d ON d.id = c.document_id
+            ORDER BY c.id
         """
         with self._connect() as conn:
             rows = conn.execute(sql).fetchall()

@@ -64,6 +64,7 @@ def rrf_fuse(
         {
             "id": cid,
             "source": docs[cid].get("source"),
+            "filename": docs[cid].get("filename"),
             "page": docs[cid].get("page"),
             "chunk_index": docs[cid].get("chunk_index"),
             "content": docs[cid].get("content"),

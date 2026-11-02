@@ -10,7 +10,6 @@ import asyncio
 from typing import Any
 
 from server.rag.embedder import embed_query
-from server.rag.keyword_search import BM25KeywordSearch
 from server.rag.rrf import rrf_fuse
 
 
@@ -29,7 +28,9 @@ def retrieve(
 
     repo = container.chunks
     dense = repo.search(embed_query(question), top_k=recall_k)
-    keyword = BM25KeywordSearch(repo.fetch_all()).search(question, top_k=recall_k)
+    # BM25 索引进程内缓存：写操作已 invalidate，这里懒重建（02 S-04）
+    index = container.bm25.ensure_built(repo.fetch_all)
+    keyword = index.search(question, top_k=recall_k)
     return rrf_fuse([("dense", dense), ("bm25", keyword)], k=rrf_k, top_k=top_k)
 
 

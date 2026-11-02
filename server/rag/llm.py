@@ -16,6 +16,7 @@ API key 只从环境变量读，绝不写进代码：
     DEEPSEEK_MODEL      默认 deepseek-chat（deepseek-reasoner 是推理模型，更慢）
 """
 
+import asyncio
 import os
 
 BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
@@ -33,128 +34,155 @@ SYSTEM_PROMPT = """你是一个严谨的问答助手。请严格依据下面提�
 _client = None
 
 
+# ----------------------------------------------------------------------
+# 异常：交给 services 层映射成错误码（内核不认识 HTTP / 错误信封）
+# ----------------------------------------------------------------------
+class LlmKeyMissing(Exception):
+    """未配置 DEEPSEEK_API_KEY。"""
+
+
+class LlmTimeout(Exception):
+    """首字节或总时长超时。"""
+
+
+class LlmError(Exception):
+    """其它调用失败（网络、限流、协议错误）。"""
+
+
 def _get_client():
-    """延迟创建客户端（同时校验 key 和 SDK）。"""
+    """延迟创建异步客户端（同时校验 key 和 SDK）。"""
     global _client
     if _client is None:
         api_key = os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
-            raise RuntimeError(
-                "缺少 DEEPSEEK_API_KEY 环境变量。\n"
-                '  永久设置: setx DEEPSEEK_API_KEY "sk-..."（之后重开终端）\n'
-                "  临时设置: export DEEPSEEK_API_KEY=sk-..."
-            )
+            raise LlmKeyMissing("未配置 DEEPSEEK_API_KEY")
         try:
-            from openai import OpenAI
-        except ImportError as e:
-            raise ImportError("缺少 openai SDK，请先安装：pip install openai") from e
-
-        _client = OpenAI(
-            api_key=api_key,
-            base_url=BASE_URL,
-            timeout=60,
-            max_retries=2,   # SDK 自带重试，应对偶发网络错误
-        )
+            from openai import AsyncOpenAI
+        except ImportError as exc:  # pragma: no cover
+            raise LlmError("未安装 openai SDK") from exc
+        _client = AsyncOpenAI(api_key=api_key, base_url=BASE_URL)
     return _client
 
 
 # ----------------------------------------------------------------------
 # 提示词组装
 # ----------------------------------------------------------------------
-
-
 def format_context(chunks: list[dict]) -> str:
-    """把检索到的 chunk 拼成带编号的参考资料。"""
-    parts = []
+    """把检索结果拼成带编号的参考资料。"""
+    blocks = []
     for i, c in enumerate(chunks, 1):
-        source = c.get("source") or "未知来源"
         page = c.get("page")
-        where = f"{source}" + (f" 第 {page} 页" if page else "")
-        parts.append(f"[{i}] 来源: {where}\n{(c.get('content') or '').strip()}")
-    return "\n\n".join(parts)
+        where = f"，第 {page} 页" if page else ""
+        blocks.append(f"[{i}] {c.get('source') or '未知来源'}{where}\n{c.get('content', '')}")
+    return "\n\n".join(blocks)
 
 
 def build_messages(question: str, chunks: list[dict]) -> list[dict]:
-    """组装发给大模型的 messages。"""
     context = format_context(chunks) if chunks else "（没有检索到任何资料）"
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": f"参考资料：\n{context}\n\n问题：{question}",
-        },
+        {"role": "user", "content": f"参考资料：\n{context}\n\n问题：{question}"},
     ]
 
 
 # ----------------------------------------------------------------------
-# 调用
+# 调用（全部异步：AsyncOpenAI + async for，02 §5.3 P-4）
 # ----------------------------------------------------------------------
+def _delta_text(chunk) -> str:
+    if not getattr(chunk, "choices", None):
+        return ""
+    delta = chunk.choices[0].delta
+    return (getattr(delta, "content", None) or "")
 
 
-def chat(
+async def chat(
     messages: list[dict],
     temperature: float = 0.3,
     max_tokens: int = 1024,
+    timeout_total: float = 60.0,
 ) -> str:
     """一次性拿到完整回答。"""
-    resp = _get_client().chat.completions.create(
-        model=MODEL,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
+    client = _get_client()
+    try:
+        async with asyncio.timeout(timeout_total):
+            resp = await client.chat.completions.create(
+                model=MODEL,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout_total,
+            )
+    except TimeoutError as exc:
+        raise LlmTimeout("大模型响应超时") from exc
+    except Exception as exc:
+        raise LlmError(str(exc)) from exc
     return resp.choices[0].message.content or ""
 
 
-def chat_stream(
+async def chat_stream(
     messages: list[dict],
     temperature: float = 0.3,
     max_tokens: int = 1024,
+    timeout_first: float = 15.0,
+    timeout_total: float = 60.0,
 ):
-    """流式回答：逐段 yield 文本，前端可以边生成边显示。"""
-    stream = _get_client().chat.completions.create(
-        model=MODEL,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        stream=True,
-    )
-    for chunk in stream:
-        if not chunk.choices:
-            continue
-        delta = chunk.choices[0].delta.content
-        if delta:
-            yield delta
+    """流式回答（异步生成器）：首字节 15 s / 总时长 60 s（06 A1）。"""
+    client = _get_client()
+    try:
+        stream = await client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=True,
+            timeout=timeout_total,
+        )
+    except TimeoutError as exc:
+        raise LlmTimeout("大模型响应超时") from exc
+    except Exception as exc:
+        raise LlmError(str(exc)) from exc
+
+    iterator = stream.__aiter__()
+    try:
+        async with asyncio.timeout(timeout_total):
+            try:
+                first = await asyncio.wait_for(iterator.__anext__(), timeout=timeout_first)
+            except StopAsyncIteration:
+                return
+            text = _delta_text(first)
+            if text:
+                yield text
+            async for chunk in iterator:
+                text = _delta_text(chunk)
+                if text:
+                    yield text
+    except TimeoutError as exc:
+        raise LlmTimeout("大模型响应超时") from exc
+    except Exception as exc:
+        raise LlmError(str(exc)) from exc
 
 
-def answer(
+async def answer(
     question: str,
     chunks: list[dict],
     stream: bool = False,
     temperature: float = 0.3,
     max_tokens: int = 1024,
+    timeout_first: float = 15.0,
+    timeout_total: float = 60.0,
 ):
     """RAG 回答入口：问题 + 检索结果 → 回答。
 
-    stream=True  返回生成器（逐段输出）
+    stream=True  返回**异步生成器**（需 `agen = await answer(...)` 再 `async for`）
     stream=False 返回完整字符串
     """
     messages = build_messages(question, chunks)
     if stream:
-        return chat_stream(messages, temperature=temperature, max_tokens=max_tokens)
-    return chat(messages, temperature=temperature, max_tokens=max_tokens)
-
-
-if __name__ == "__main__":
-    # 连通性自测：不走检索，直接问一句
-    import sys
-
-    sys.stdout.reconfigure(encoding="utf-8")
-
-    question = sys.argv[1] if len(sys.argv) > 1 else "用一句话介绍你自己"
-    print(f"模型: {MODEL}")
-    print(f"问题: {question}")
-    print("回答: ", end="", flush=True)
-    for piece in chat_stream([{"role": "user", "content": question}]):
-        print(piece, end="", flush=True)
-    print()
+        return chat_stream(
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout_first=timeout_first,
+            timeout_total=timeout_total,
+        )
+    return await chat(messages, temperature=temperature, max_tokens=max_tokens, timeout_total=timeout_total)

@@ -11,6 +11,7 @@
 预览模式只依赖标准库；建库和问答需要 sentence-transformers、psycopg、openai。
 """
 
+import asyncio
 import sys
 import time
 from pathlib import Path
@@ -174,11 +175,8 @@ def ask(question: str, top_k: int = 5) -> tuple[list[dict], str]:
     print()
 
     print("回答: ", end="", flush=True)
-    pieces: list[str] = []
     try:
-        for piece in answer(question, chunks, stream=True):
-            pieces.append(piece)
-            print(piece, end="", flush=True)
+        pieces = _stream_answer(question, chunks)
     except Exception as e:
         print(f"\n\n调用大模型失败: {e}")
         return chunks, ""
@@ -187,6 +185,21 @@ def ask(question: str, top_k: int = 5) -> tuple[list[dict], str]:
     t2 = time.perf_counter()
     print(f"\n\n[检索 {t1 - t0:.2f}s / 生成 {t2 - t1:.2f}s / 引用 {len(chunks)} 条]")
     return chunks, text
+
+
+def _stream_answer(question: str, chunks: list[dict]) -> list[str]:
+    """在内核是异步生成器（02 P-4）的前提下，给同步 CLI 提供一个消费入口。"""
+    async def run() -> list[str]:
+        from server.rag.llm import answer
+
+        agen = await answer(question, chunks, stream=True)
+        out: list[str] = []
+        async for piece in agen:
+            out.append(piece)
+            print(piece, end="", flush=True)
+        return out
+
+    return asyncio.run(run())
 
 
 # ------------------------------------------------------------------

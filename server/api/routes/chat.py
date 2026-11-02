@@ -25,5 +25,5 @@ async def chat_stream(payload: ChatRequest):
         raise AppError("QUESTION_EMPTY")
     if len(question) > 500:
         raise AppError("QUESTION_TOO_LONG")
-    stream = await chat.ask_stream(get_container(), question)
+    stream = chat.ask_stream(get_container(), question)
     return StreamingResponse(stream, media_type="text/event-stream; charset=utf-8", headers=SSE_HEADERS)
