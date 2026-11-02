@@ -1,0 +1,22 @@
+# 运行期数据与备份（不进版本库）
+backups/
+data/uploads/
+*.dump
+*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 环境与密钥
+.env
+.env.*
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store

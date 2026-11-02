@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>知问 · 知识库问答</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="侧边栏">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.9 5.8a2 2 0 0 0 1.29 1.29L21 12l-5.81 1.9a2 2 0 0 0-1.29 1.29L12 21l-1.9-5.81a2 2 0 0 0-1.29-1.29L3 12l5.81-1.9a2 2 0 0 0 1.29-1.29L12 3Z"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <strong>知问</strong>
+          <span>本地知识库问答</span>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="主导航">
+        <button type="button" class="nav-item is-active" data-view="chat" aria-current="page">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span>问答</span>
+        </button>
+        <button type="button" class="nav-item" data-view="docs">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M3 5v14a9 3 0 0 0 18 0V5"/>
+            <path d="M3 12a9 3 0 0 0 18 0"/>
+          </svg>
+          <span>知识库</span>
+          <span class="nav-count" id="navDocCount">0</span>
+        </button>
+      </nav>
+
+      <section class="history-section" id="historySection" aria-label="问答历史">
+        <div class="section-head">
+          <span>历史记录</span>
+          <button type="button" class="icon-btn small" id="newChatBtn" aria-label="新建对话" title="新建对话">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14"/><path d="M5 12h14"/>
+            </svg>
+          </button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </section>
+
+      <div class="sidebar-footer">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>本地服务已连接</span>
+      </div>
+    </aside>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
+
+    <div class="main">
+      <header class="topbar">
+        <button type="button" class="icon-btn menu-btn" id="menuBtn" aria-label="打开侧边栏">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>
+          </svg>
+        </button>
+        <div class="topbar-title">
+          <h1 id="pageTitle">问答</h1>
+          <p id="pageSubtitle">基于知识库内容回答，并标注引用来源</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="status-pill" id="kbStatus">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="kbStatusText">知识库就绪</span>
+          </span>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="view view-chat is-active" id="chatView" aria-labelledby="pageTitle">
+          <div class="chat-scroll" id="chatScroll">
+            <div class="chat-inner" id="chatInner" role="log" aria-label="对话内容"></div>
+          </div>
+          <div class="composer-wrap">
+            <form class="composer" id="chatForm">
+              <textarea id="questionInput" rows="1" maxlength="500" placeholder="输入问题，向知识库提问…" aria-label="输入问题"></textarea>
+              <div class="composer-bar">
+                <span class="composer-hint">Enter 发送 · Shift + Enter 换行</span>
+                <div class="composer-actions">
+                  <span class="char-count" id="charCount">0 / 500</span>
+                  <button type="submit" class="send-btn" id="sendBtn" aria-label="发送问题" disabled>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="view view-docs" id="docsView" aria-labelledby="pageTitle">
+          <div class="docs-scroll">
+            <div class="docs-inner">
+              <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="选择或拖拽文档上传">
+                <input type="file" id="fileInput" multiple accept=".pdf,.docx,.md,.txt,.xlsx,.csv" hidden>
+                <div class="dropzone-icon" aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/>
+                    <path d="M12 12v9"/><path d="m16 16-4-4-4 4"/>
+                  </svg>
+                </div>
+                <p class="dropzone-title">拖拽文件到此处，或<span class="link">点击选择</span></p>
+                <p class="dropzone-hint">支持 PDF、Word、Markdown、TXT、Excel、CSV · 单文件 ≤ 50 MB · 单次 ≤ 20 个</p>
+              </div>
+
+              <div class="upload-queue" id="uploadQueue" hidden>
+                <div class="queue-head">
+                  <span>上传队列</span>
+                  <button type="button" class="text-btn" id="clearQueueBtn">清除</button>
+                </div>
+                <div class="queue-body" id="queueBody"></div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>全部文档 <span class="count-badge" id="docCountLabel">0</span></h2>
+                    <p class="panel-sub" id="chunkTotal">共 0 个知识片段</p>
+                  </div>
+                  <button type="button" class="btn btn-secondary" id="uploadBtn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 5v14"/><path d="M5 12h14"/>
+                    </svg>
+                    上传文档
+                  </button>
+                </div>
+
+                <div class="table-wrap" id="tableWrap">
+                  <table class="doc-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">文件名</th>
+                        <th scope="col">类型</th>
+                        <th scope="col">大小</th>
+                        <th scope="col">片段数</th>
+                        <th scope="col">最近更新</th>
+                        <th scope="col"><span class="sr-only">操作</span></th>
+                      </tr>
+                    </thead>
+                    <tbody id="docTableBody"></tbody>
+                  </table>
+                </div>
+
+                <div class="empty-state" id="docsEmpty" hidden>
+                  <div class="empty-icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>
+                    </svg>
+                  </div>
+                  <h3>还没有文档</h3>
+                  <p>上传第一份资料，开始构建你的知识库。</p>
+                  <button type="button" class="btn btn-primary" id="emptyUploadBtn">上传文档</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalMessage">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true"></div>
+      <h2 id="modalTitle">删除文档？</h2>
+      <p id="modalMessage"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="modalCancel">取消</button>
+        <button type="button" class="btn btn-danger" id="modalConfirm">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toastStack"></div>
+  <p class="sr-only" id="liveStatus" aria-live="polite"></p>
+
+  <script src="app.js"></script>
+</body>
+</html>
