@@ -1,15 +1,17 @@
-import { useState } from 'react'
+/** 轻提示堆栈 */
+import { useToastStore } from '../state/toastStore'
 
-export function useToast() {
-  const [message, setMessage] = useState<string | null>(null)
-  const show = (text: string) => {
-    setMessage(text)
-    window.setTimeout(() => setMessage(null), 3000)
-  }
-  return { message, show }
-}
-
-export default function Toast({ message }: { message: string | null }) {
-  if (!message) return null
-  return <div className="toast">{message}</div>
+export default function ToastStack() {
+  const items = useToastStore((s) => s.items)
+  const dismiss = useToastStore((s) => s.dismiss)
+  if (items.length === 0) return null
+  return (
+    <div className="toast-stack" aria-live="polite">
+      {items.map((t) => (
+        <div key={t.id} className={`toast toast-${t.kind}`} role="status" onClick={() => dismiss(t.id)}>
+          <span>{t.text}</span>
+        </div>
+      ))}
+    </div>
+  )
 }

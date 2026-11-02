@@ -1,7 +1,7 @@
 {
   "name": "ragdemo-web",
   "private": true,
-  "version": "0.1.0-skeleton",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,5 +20,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.6.3",
     "vite": "^5.4.11"
-  }
+  },
+  "description": "ragdemo 前端（React + Vite + TS）：知识库问答界面"
 }

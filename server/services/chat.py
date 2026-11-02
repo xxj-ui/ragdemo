@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any, AsyncIterator
 
 import psycopg
@@ -40,11 +41,27 @@ def error_event(code: str, message: str | None = None) -> bytes:
     return sse("error", {"code": code, "message": message or ERROR_CODES.get(code, (500, "服务内部错误"))[1]})
 
 
+def _clean_snippet(text: str) -> str:
+    """摘要只做展示：去掉 Markdown 标记、压缩空白（不改库里的正文）。"""
+    lines = []
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        line = re.sub(r"^[#>]+\s*", "", line)
+        line = re.sub(r"^[-*+]\s+", "", line)
+        line = re.sub(r"\*\*|__|`{1,3}", "", line)
+        line = line.lstrip("|").replace("|", " ")
+        if line:
+            lines.append(line)
+    return " ".join(" ".join(lines).split())[:SNIPPET_MAX]
+
+
 def build_citations(chunks: list[dict]) -> list[dict]:
     """M5：唯一引用组装处。编号即展示顺序，从 1 开始。"""
     citations = []
     for i, chunk in enumerate(chunks, 1):
-        snippet = " ".join((chunk.get("content") or "").split())[:SNIPPET_MAX]
+        snippet = _clean_snippet(chunk.get("content") or "")
         citations.append({
             "n": i,
             "filename": chunk.get("filename") or chunk.get("source") or "",

@@ -35,7 +35,13 @@ scripts/run_dev.sh        # Windows: scripts\run_dev.bat
 
 启动后：接口文档 `http://127.0.0.1:8000/docs`，健康检查 `http://127.0.0.1:8000/api/health`。
 
-> `server/app.py` 是 M1 交付物，当前还不存在——`run_dev.*` 会提示"未就绪"并退出，这是预期行为。
+# 5) 启动前端（另开一个终端；Vite 代理 /api → 127.0.0.1:8000）
+scripts/run_web.sh         # Windows: scripts\run_web.bat
+```
+
+打开 `http://127.0.0.1:5173` 即可使用界面（问答 / 知识库两页）。
+
+> 首次问答要等向量模型加载（约 20 s），状态胶囊会显示「部分能力不可用」，加载完成后自动回到「知识库就绪」。
 
 ## CLI（现在就能用）
 
@@ -57,11 +63,14 @@ python -m server.main --ask "问题"            # 检索 + 大模型回答
 
 ```text
 ragdemo/
-├── server/          # 后端单包
-│   ├── rag/         #   领域内核：解析/切分/嵌入/检索/融合/生成/片段读写 + CLI
-│   └── …            #   Web 层：app/routes/service/装配/两个仓储
-├── web/             # 前端：React + Vite + TS（骨架）
-├── docs/            # 需求、SRS、设计 01~06、规范
+├── server/          # 后端单包（地图见 server/README.md）
+│   ├── core/        #   横切：config / errors / logging / timeutil / storage
+│   ├── rag/         #   领域内核：解析/切分/嵌入/打分/融合/生成（纯算法）
+│   ├── db/          #   数据访问：pool / documents / chunks / conversations
+│   ├── api/         #   契约层：routes / schemas / deps
+│   └── services/    #   编排：documents / retrieval / chat / history / health
+├── web/             # 前端：React + Vite + TS（问答 / 知识库两页）
+├── docs/            # 需求、SRS、设计 01~09、规范
 ├── prototype/       # 高保真原型（交互蓝本，只读参照）
 ├── scripts/         # sql/schema.sql、run_dev.*、run_web.*
 ├── data/uploads/    # 原文件落盘（运行期生成，不进版本库）

@@ -104,6 +104,42 @@ export interface ConversationListItem {
   created_at: string
 }
 
+export interface ConversationDetail {
+  id: number
+  title: string
+  created_at: string
+  messages: { role: 'user' | 'assistant'; content: string; citations: CitationItem[] }[]
+}
+
+/** API-2 列表（无独立统计接口，统计由调用方现算：04 Q4） */
+export async function listDocuments(): Promise<DocumentItem[]> {
+  const data = await request<{ items: DocumentItem[] }>('/documents')
+  return data.items
+}
+
+/** API-3 删除文档：成功返回 200 + data:null */
+export async function deleteDocument(documentId: number): Promise<void> {
+  await request<null>(`/documents/${documentId}`, { method: 'DELETE' })
+}
+
+/** API-5 历史列表 */
+export async function listConversations(limit = 50, offset = 0): Promise<ConversationListItem[]> {
+  const data = await request<{ items: ConversationListItem[] }>(
+    `/conversations?limit=${limit}&offset=${offset}`,
+  )
+  return data.items
+}
+
+/** API-6 历史详情 */
+export function getConversation(conversationId: number): Promise<ConversationDetail> {
+  return request<ConversationDetail>(`/conversations/${conversationId}`)
+}
+
+/** API-7 删除历史 */
+export async function deleteConversation(conversationId: number): Promise<void> {
+  await request<null>(`/conversations/${conversationId}`, { method: 'DELETE' })
+}
+
 export interface HealthData {
   status: 'ok' | 'degraded'
   database: 'ok' | 'error'

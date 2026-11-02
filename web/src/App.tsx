@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import ChatPage from './pages/ChatPage'
 import DocumentsPage from './pages/DocumentsPage'
-import StatusPill from './components/StatusPill'
+import Sidebar from './components/Sidebar'
+import Topbar from './components/Topbar'
+import ToastStack from './components/Toast'
+import { useChatStore } from './state/chatStore'
+import { useDocsStore } from './state/docsStore'
 
 // 02 S-06：不引路由库，用 location.hash 在两个视图间切换（SRS 8.1 锚点记忆）
 type View = 'chat' | 'docs'
@@ -11,7 +15,11 @@ function readView(): View {
 }
 
 export default function App() {
-  const [view, setView] = useState<View>(readView())
+  const [view, setView] = useState<View>(readView)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const docCount = useDocsStore((s) => s.items.length)
+  const loadDocs = useDocsStore((s) => s.load)
+  const loadHistory = useChatStore((s) => s.loadHistory)
 
   useEffect(() => {
     const onHash = () => setView(readView())
@@ -19,19 +27,40 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
+  useEffect(() => {
+    void loadHistory()
+    void loadDocs()
+  }, [loadHistory, loadDocs])
+
+  const navigate = useCallback((next: View) => {
+    setView(next)
+    window.location.hash = next === 'docs' ? '#docs' : '#chat'
+  }, [])
+
+  const closeDrawer = useCallback(() => setDrawerOpen(false), [])
+
   return (
     <div className="app">
-      <header className="app__header">
-        <strong>ragdemo · 知识库问答</strong>
-        <nav className="app__nav">
-          <a href="#chat" className={view === 'chat' ? 'is-active' : ''}>问答</a>
-          <a href="#docs" className={view === 'docs' ? 'is-active' : ''}>知识库</a>
-        </nav>
-        <StatusPill />
-      </header>
-      <main className="app__main">
-        {view === 'chat' ? <ChatPage /> : <DocumentsPage />}
-      </main>
+      <Sidebar
+        view={view}
+        docCount={docCount}
+        onNavigate={navigate}
+        onCloseDrawer={closeDrawer}
+        drawerOpen={drawerOpen}
+      />
+      {drawerOpen ? (
+        <div className="sidebar-backdrop" role="presentation" onClick={closeDrawer} />
+      ) : null}
+
+      <div className="main">
+        <Topbar view={view} onOpenDrawer={() => setDrawerOpen(true)} />
+        <main className="content">
+          {view === 'chat' ? <ChatPage /> : <DocumentsPage />}
+        </main>
+      </div>
+
+      <ToastStack />
+      <p className="sr-only" aria-live="polite" />
     </div>
   )
 }
