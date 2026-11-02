@@ -1,0 +1,27 @@
+# 运行期依赖（版本为 Python 3.13.9 实测安装版本，2026-11-02）
+# 安装：pip install -r requirements.txt
+# torch 为 CPU 版；若 pip 装到 CUDA 版，改用：
+#   pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu
+
+fastapi==0.136.3
+uvicorn==0.46.0
+pydantic==2.12.5
+python-multipart==0.0.28
+
+# 数据库：psycopg 3 + 连接池扩展（02 S-09，min_size=1 / max_size=4 / timeout=5s）
+psycopg[pool]==3.3.6
+
+# 嵌入与分词
+sentence-transformers==5.4.1
+transformers==5.8.0
+torch==2.11.0
+numpy==2.4.3
+jieba==0.42.1
+
+# 大模型（OpenAI 兼容协议，指向 DeepSeek）
+openai==2.32.0
+
+# 文档解析（六种格式）
+pdfplumber==0.11.9
+python-docx==1.2.0
+openpyxl==3.1.5

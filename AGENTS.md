@@ -6,7 +6,7 @@
 
 - **目标**：本机单用户 Web 知识库问答（RAG），批量上传文档 + 基于知识库提问 + 引用来源 + 历史回看。
 - **技术栈**：FastAPI + PostgreSQL/pgvector + bge-small-zh-v1.5 + DeepSeek；前端 React + Vite + TS。
-- **现状**：RAG 内核（loaders / splitter / embedder / chunk_repository / keyword_search / rrf / llm）已跑通，仅有 CLI 入口；设计第 1 步（功能模块梳理）已定稿（[01 v0.8](docs/design/01.功能模块梳理.md)），第 2 步（技术选型与整体架构）已产出待审核（[02 v0.1](docs/design/02.整体架构设计.md)），SRS 已到 v0.5、需求分析已到 v0.2；Web 层（server 路由、service 层、新数据表）与前端均尚未开始。
+- **现状**：RAG 内核（loaders / splitter / embedder / chunk_repository / keyword_search / rrf / llm）已跑通并全部收在 `server/` 单包，CLI 入口 `python -m server.main`；需求与设计已定稿：[SRS](docs/SRS.md) v0.7、[00 需求分析](docs/00.需求分析.md) v0.3、[01 功能模块](docs/design/01.功能模块梳理.md) v1.0、[02 整体架构](docs/design/02.整体架构设计.md) v0.8、[03 数据库](docs/design/03.数据库设计.md) v0.3、[04 API](docs/design/04.API接口设计.md) v0.5、[05 评审结果](docs/design/05.设计方案评审结果.md) v0.4、[06 遗留问题](docs/design/06.遗留问题清单.md) v0.3、[07 测试用例](docs/design/07.测试用例清单.md) v0.1、[08 性能基线](docs/design/08.性能基线实测.md) v0.1；数据库 4 张表已在真库 `ragdemo` 落地（0 行），`scripts/sql/schema.sql` 幂等可重跑；`requirements.txt` 与启动脚本已就绪；**Web 层（app / routes / service）与前端尚未开始**，下一步 M1。
 - **权威文档**：
   - 需求分析：[docs/00.需求分析.md](docs/00.需求分析.md)（角色 / 场景 / 用例 / 优先级 / 追溯）
   - 需求规格：[docs/SRS.md](docs/SRS.md)（FR / NFR / BR / AC + 接口与数据契约）
@@ -97,24 +97,24 @@
 2. 修 bug 先复现，复现步骤写清楚；修完给出复现验证结果。
 3. 不把"跑通了"当"验收通过"；每条结论标注是**实测**还是**推断**。
 
-## 9. 当前待拍板事项（架构阶段）
+## 9. 已裁决事项（原「待拍板」）
 
-以下问题需在架构设计阶段定稿，未定稿前不进入编码：
+以下事项均已于 2026-11-02 在设计文档中定稿，不再阻塞编码：
 
-| # | 事项 | 现状 |
-| --- | --- | --- |
-| 1 | 数据库密码硬编码 | `server/chunk_repository.py` 的 `DEFAULT_DSN` 含明文密码，违反 SRS 2.4.3 |
-| 2 | BM25 索引生命周期 | SRS 要求启动建一次 + 失效重建，现有代码每次查询全量重建；且要求单 worker |
-| 3 | 阻塞与超时策略 | 50 页 PDF 同步入库 ≤60s，CPU 嵌入 + 同步 psycopg，需定线程池与超时 |
-| 4 | 前端路线 | SRS 定 React + Vite + TS，原型为原生 JS，需决定重写还是承接 |
-
-已在文档定稿中裁决、不再阻塞：
-
-- 物理外键 → 只建逻辑关联，级联删除由服务层事务保证（SRS v0.3 D-9，2026-11-02）
-- 文件类型口径 → 六种正式类型 pdf / docx / md / txt / xlsx / csv（SRS v0.2 6.1，2026-11-01）
+| # | 事项 | 结论 | 落点 |
+| --- | --- | --- | --- |
+| 1 | 数据库密码硬编码 | `RAG_DB_DSN` 必填、缺失即启动失败；明文默认值已删除 | 02 §P-3；`server/chunk_repository.py` 已改 |
+| 2 | BM25 索引生命周期 | 启动构建一次 + 写操作置失效 + 下次检索前懒重建；后端单 worker | 02 S-01 / S-04 |
+| 3 | 阻塞与超时策略 | psycopg 同步 + `to_thread`；解析/嵌入走专用单线程池；大模型首字节 15 s / 总 60 s；上传前端 120 s | 02 S-03、04 §3.7 |
+| 4 | 前端路线 | React + Vite + TS，原型作交互蓝本；Vite 代理、后端不开 CORS；详细设计在 M3 前另出文档 | 02 S-06 / S-07、04 §3.6.1、06 A5 |
+| 5 | 数据库连接 | `psycopg_pool` 进程内连接池（min=1 / max=4 / timeout=5 s） | 02 S-09、06 A4 |
+| 6 | 大模型客户端 | `AsyncOpenAI` + `async for`，`llm.py` 暴露异步生成器 | 02 §5.3 P-4 |
+| 7 | 物理外键 | 只建逻辑关联，级联删除由服务层事务保证 | SRS D-9、database-rules §4.2 |
+| 8 | 文件类型口径 | 六种正式类型 pdf / docx / md / txt / xlsx / csv | SRS 6.1、BR-9 |
 
 ## 变更记录
 
 | 日期 | 变更 |
 | --- | --- |
 | 2026-11-02 | 新增第 3 节「项目设计阶段规则」、第 5 节「数据库设计规则」、第 6 节「API 接口设计规则」；原架构设计（3→4）、编码（4→7）、测试与验收（5→8）、待拍板事项（6→9）顺延编号，正文内容未改。 |
+| 2026-11-02 | §0「现状」对齐到设计定稿状态（SRS v0.7、01~06 全部定稿、4 张表已落地）；§9 由「当前待拍板事项」改为「已裁决事项」，8 项全部给出结论与落点。规则条款未改动。 |
