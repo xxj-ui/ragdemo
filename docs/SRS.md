@@ -68,7 +68,7 @@
 
 ### 1.4 参考
 
-- 现有代码：`server/rag/` 子包内的 `loaders.py`、`splitter.py`、`embedder.py`、`chunk_repository.py`、`keyword_search.py`、`rrf.py`、`llm.py`
+- 现有代码：`server/rag/` 子包内的 `loaders.py`、`splitter.py`、`embedder.py`、`keyword_search.py`、`rrf.py`（片段读写已移到 `server/db/chunks.py`）、`llm.py`
 - 嵌入模型：`BAAI/bge-small-zh-v1.5`（512 维，本地缓存）
 - 大模型：DeepSeek `deepseek-chat`（OpenAI 兼容协议）
 - 向量库：PostgreSQL + pgvector
@@ -85,7 +85,7 @@
     ▼
 FastAPI 服务（本机 127.0.0.1）
     │
-    ├── 服务层 server/service/（上传、删除、检索、问答、历史）
+    ├── 服务层 server/services/（上传、删除、检索、问答、历史）
     │
     ├── PostgreSQL + pgvector（documents / rag_chunks / conversations / messages）
     ├── 本地文件存储（上传的原文件）
@@ -359,10 +359,10 @@ FastAPI 服务（本机 127.0.0.1）
   └── 知识库页（Documents）
         │
         ▼
-FastAPI 路由层（server/routes/）
+FastAPI 路由层（server/api/routes/）
         │
         ▼
-服务层 server/service/
+服务层 server/services/
   ├── upload_document(path) -> DocumentResult
   ├── list_documents() -> list[Document]
   ├── delete_document(id)
@@ -373,7 +373,7 @@ FastAPI 路由层（server/routes/）
 RAG 核心（server/rag/ 子包内的纯 Python 模块）
   ├── loaders.py / splitter.py
   ├── embedder.py
-  ├── chunk_repository.py
+  ├── db/chunks.py（片段读写，原 chunk_repository.py）
   ├── keyword_search.py（BM25，进程内缓存）
   ├── rrf.py
   └── llm.py

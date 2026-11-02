@@ -136,37 +136,3 @@ class BM25KeywordSearch:
             }
             for score, i in scored[:top_k]
         ]
-
-
-def search_chunks(question: str, top_k: int = 5) -> list[dict]:
-    """关键词检索的完整入口：读库 → 建索引 → 返回 top_k。
-
-    以后 FastAPI 直接调这个函数；打印交给上层。
-    """
-    from .chunk_repository import PgChunkRepository
-
-    docs = PgChunkRepository().fetch_all()
-    return BM25KeywordSearch(docs).search(question, top_k)
-
-
-if __name__ == "__main__":
-    # 临时自测入口，不污染 main.py
-    import sys
-
-    sys.stdout.reconfigure(encoding="utf-8")
-    if len(sys.argv) < 2:
-        print('用法: python -m ragdemo.keyword_search "问题" [top_k]')
-        raise SystemExit(1)
-
-    question = sys.argv[1]
-    k = int(sys.argv[2]) if len(sys.argv) > 2 else 5
-    results = search_chunks(question, top_k=k)
-
-    print(f"问题: {question}")
-    print(f"分词: {' / '.join(tokenize(question))}")
-    if not results:
-        print("没有命中任何 chunk")
-    for i, r in enumerate(results, 1):
-        print("-" * 60)
-        print(f"#{i}  分数 {r['score']:.4f}  来源 {r['source']}  块 {r['chunk_index']}")
-        print(r["content"][:200])

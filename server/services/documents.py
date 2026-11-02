@@ -21,11 +21,11 @@ from typing import Any
 import psycopg
 from psycopg_pool import PoolClosed, PoolTimeout
 
-from server import storage
-from server.config import PROJECT_ROOT
-from server.errors import ERROR_CODES, DependencyUnavailable, NotFoundError
+from server.core import storage
+from server.core.config import PROJECT_ROOT
+from server.core.errors import ERROR_CODES, DependencyUnavailable, NotFoundError
 from server.rag import embedder, loaders, splitter
-from server.timeutil import to_local_iso
+from server.core.timeutil import to_local_iso
 
 logger = logging.getLogger("ragdemo.document_service")
 

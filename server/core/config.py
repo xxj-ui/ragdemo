@@ -9,7 +9,12 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# 本文件在 server/core/config.py → 上溯 3 层才是项目根（server/core → server → 根）
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# 目录一挪就会静默指错地方（上传文件会写进 server/ 里），启动即失败更安全
+if not (PROJECT_ROOT / "requirements.txt").exists():
+    raise RuntimeError(f"PROJECT_ROOT 解析错误：{PROJECT_ROOT} 下没有 requirements.txt")
 
 
 def _env_int(name: str, default: int) -> int:

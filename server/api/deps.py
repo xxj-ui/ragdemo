@@ -1,18 +1,18 @@
-"""单例装配（02 §4.2 / §3.3）
+"""依赖装配（02 §4.2 / §3.3）
 
 容器只负责"把依赖接好"，不做业务判断：仓储、连接池、进程内索引、模型状态位。
+请求级与进程级都从这里取，`app.py` 只管装配与横切。
 """
 from __future__ import annotations
 
 from typing import Any
 
-from psycopg.rows import dict_row
-
-from server.config import Settings, load_settings
-from server.conversation_repository import ConversationRepository
-from server.document_repository import DocumentRepository
+from server.core.config import Settings, load_settings
+from server.db import pool as db_pool
+from server.db.chunks import PgChunkRepository
+from server.db.conversations import ConversationRepository
+from server.db.documents import DocumentRepository
 from server.rag.bm25_index import Bm25Index
-from server.rag.chunk_repository import PgChunkRepository
 
 
 class Container:
@@ -28,20 +28,13 @@ class Container:
         # 进程内状态位，供 /api/health 读取（02 §2.6）
         self.model_state: str = "loading"
 
-    # ------------------------------------------------------------------
-    # 连接池（S-09：min=1 / max=4 / timeout=5s，行工厂 dict_row）
-    # ------------------------------------------------------------------
     def pool(self) -> Any:
         if self._pool is None:
-            from psycopg_pool import ConnectionPool
-
-            self._pool = ConnectionPool(
-                conninfo=self.settings.db_dsn,
-                min_size=self.settings.db_pool_min,
-                max_size=self.settings.db_pool_max,
-                timeout=self.settings.db_pool_timeout,
-                kwargs={"row_factory": dict_row},
-                open=True,
+            self._pool = db_pool.create_pool(
+                self.settings.db_dsn,
+                self.settings.db_pool_min,
+                self.settings.db_pool_max,
+                self.settings.db_pool_timeout,
             )
         return self._pool
 

@@ -13,10 +13,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from server.deps import get_container, set_container
-from server.errors import AppError, error_body
-from server.logging_conf import new_request_id, request_id_ctx, setup_logging
-from server.routes import chat, conversations, documents, health
+from server.api.deps import get_container, set_container
+from server.core.errors import AppError, error_body
+from server.core.logging import new_request_id, request_id_ctx, setup_logging
+from server.api.routes import chat, conversations, documents, health
 
 logger = logging.getLogger("ragdemo.app")
 

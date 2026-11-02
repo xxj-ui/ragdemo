@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from server.deps import get_container
-from server.schemas import Envelope, HealthData
-from server.service import health_service
+from server.api.deps import get_container
+from server.api.schemas import Envelope, HealthData
+from server.services import health
 
 router = APIRouter(tags=["health"])
 
 
 @router.get("/health", response_model=Envelope[HealthData], summary="健康检查")
-async def health():
-    result = health_service.probe(get_container())
+async def health_check():
+    result = health.probe(get_container())
     return Envelope(data=HealthData(**result))
