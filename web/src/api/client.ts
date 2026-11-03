@@ -98,6 +98,30 @@ export interface CitationItem {
   chunk_id: number
 }
 
+export interface DocumentChunkItem {
+  chunk_id: number
+  chunk_index: number
+  page: string | null
+  content: string
+}
+
+export interface DocumentBrief {
+  id: number
+  filename: string
+  file_type: string
+  file_size: number
+  chunk_count: number
+  updated_at: string
+}
+
+export interface DocumentChunks {
+  document: DocumentBrief
+  total: number
+  offset: number
+  limit: number
+  items: DocumentChunkItem[]
+}
+
 export interface ConversationListItem {
   id: number
   title: string
@@ -120,6 +144,15 @@ export async function listDocuments(): Promise<DocumentItem[]> {
 /** API-3 删除文档：成功返回 200 + data:null */
 export async function deleteDocument(documentId: number): Promise<void> {
   await request<null>(`/documents/${documentId}`, { method: 'DELETE' })
+}
+
+/** API-9 文档片段预览（只读，按 chunk_index 顺序分页） */
+export function listDocumentChunks(
+  documentId: number,
+  offset = 0,
+  limit = 20,
+): Promise<DocumentChunks> {
+  return request<DocumentChunks>(`/documents/${documentId}/chunks?offset=${offset}&limit=${limit}`)
 }
 
 /** API-5 历史列表 */

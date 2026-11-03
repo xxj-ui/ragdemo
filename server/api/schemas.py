@@ -51,6 +51,32 @@ class DocumentList(BaseModel):
     items: list[DocumentItem]
 
 
+class DocumentBrief(BaseModel):
+    id: int
+    filename: str
+    file_type: str
+    file_size: int
+    chunk_count: int
+    updated_at: str
+
+
+class DocumentChunkItem(BaseModel):
+    chunk_id: int
+    chunk_index: int
+    page: str | None = None
+    content: str
+
+
+class DocumentChunks(BaseModel):
+    """文档只读预览（FR-8）：按 chunk_index 顺序分页。"""
+
+    document: DocumentBrief
+    total: int
+    offset: int
+    limit: int
+    items: list[DocumentChunkItem]
+
+
 class ChatRequest(BaseModel):
     question: str
 

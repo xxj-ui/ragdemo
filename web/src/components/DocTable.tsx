@@ -1,5 +1,6 @@
-/** 文档表格 + 空状态；删除走二次确认 */
+/** 文档表格 + 空状态；删除走二次确认；点文件名看片段预览（只读） */
 import { useState } from 'react'
+import ChunkDrawer from './ChunkDrawer'
 import ConfirmModal from './ConfirmModal'
 import { FileEmptyIcon, FileIcon, TrashIcon, UploadIcon } from './icons'
 import { useDocsStore, selectDocStats } from '../state/docsStore'
@@ -13,6 +14,7 @@ export default function DocTable({ onUploadClick }: { onUploadClick: () => void 
   const remove = useDocsStore((s) => s.remove)
   const { documentCount, chunkCount } = useDocsStore(selectDocStats)
   const [pending, setPending] = useState<DocumentItem | null>(null)
+  const [preview, setPreview] = useState<DocumentItem | null>(null)
 
   return (
     <div className="panel">
@@ -62,7 +64,14 @@ export default function DocTable({ onUploadClick }: { onUploadClick: () => void 
                         <FileIcon />
                       </span>
                       <div>
-                        <div className="file-name" title={d.filename}>{d.filename}</div>
+                        <button
+                          type="button"
+                          className="file-name file-name-btn"
+                          title={`${d.filename}（点击查看片段）`}
+                          onClick={() => setPreview(d)}
+                        >
+                          {d.filename}
+                        </button>
                         <div className="file-sub">{FILE_TYPE_LABEL[d.file_type] ?? d.file_type}</div>
                       </div>
                     </div>
@@ -72,6 +81,15 @@ export default function DocTable({ onUploadClick }: { onUploadClick: () => void 
                   <td className="cell-muted">{d.chunk_count}</td>
                   <td className="cell-muted">{formatDateTime(d.updated_at)}</td>
                   <td className="cell-actions">
+                    <button
+                      type="button"
+                      className="text-btn"
+                      aria-label={`预览 ${d.filename} 的片段`}
+                      title="查看片段"
+                      onClick={() => setPreview(d)}
+                    >
+                      预览
+                    </button>
                     <button
                       type="button"
                       className="icon-btn small"
@@ -88,6 +106,8 @@ export default function DocTable({ onUploadClick }: { onUploadClick: () => void 
           </table>
         </div>
       )}
+
+      <ChunkDrawer doc={preview} onClose={() => setPreview(null)} />
 
       <ConfirmModal
         open={pending !== null}

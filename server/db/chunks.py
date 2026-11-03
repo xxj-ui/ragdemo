@@ -183,3 +183,42 @@ class PgChunkRepository:
         with self._using(conn) as c:
             cur = c.execute(f"DELETE FROM {TABLE_NAME} WHERE document_id = %s", (document_id,))
             return cur.rowcount
+
+    # ------------------------------------------------------------------
+    # 按文档维度只读（文档预览，FR-8）
+    # ------------------------------------------------------------------
+
+    def count_for_document(self, document_id: int, conn=None) -> int:
+        with self._using(conn) as c:
+            row = c.execute(
+                f"SELECT count(*) AS n FROM {TABLE_NAME} WHERE document_id = %s", (document_id,)
+            ).fetchone()
+        # 连接池给的是 dict_row，自开连接是元组行
+        return row["n"] if isinstance(row, dict) else row[0]
+
+    def list_for_document(
+        self, document_id: int, offset: int = 0, limit: int = 20, conn=None
+    ) -> list[dict]:
+        """按 chunk_index 顺序分页读片段（不带向量，预览用）。"""
+        sql = f"""
+            SELECT id, chunk_index, page, content
+            FROM {TABLE_NAME}
+            WHERE document_id = %s
+            ORDER BY chunk_index
+            OFFSET %s LIMIT %s
+        """
+        with self._using(conn) as c:
+            rows = c.execute(sql, (document_id, offset, limit)).fetchall()
+        # 外部传入的连接来自连接池（dict_row），自开的连接是元组行——两种都要吃得下
+        def pick(row, idx, key):
+            return row[key] if isinstance(row, dict) else row[idx]
+
+        return [
+            {
+                "id": pick(row, 0, "id"),
+                "chunk_index": pick(row, 1, "chunk_index"),
+                "page": pick(row, 2, "page"),
+                "content": pick(row, 3, "content"),
+            }
+            for row in rows
+        ]
