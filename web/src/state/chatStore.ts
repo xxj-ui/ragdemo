@@ -64,10 +64,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       })
 
     try {
+      // 引用先到达但先不落位：SSE 顺序是 citations → delta* → done，
+      // 若立刻渲染，用户会先看到一排引用卡片、正文还是空的。
+      // 这里只暂存，等回答流结束再挂到消息上（"先答完、再给来源"）。
+      let pendingCitations: CitationItem[] = []
       await streamChat(clean, (ev) => {
         if (ev.event === 'citations') {
-          patchLast((m) => ({ ...m, citations: ev.data.items }))
-          set({ phase: 'streaming' })
+          pendingCitations = ev.data.items
+          // 不切到 streaming：让"正在检索知识库…"一直显示到第一个字到达
         } else if (ev.event === 'delta') {
           patchLast((m) => ({ ...m, content: m.content + ev.data.text }))
           set({ phase: 'streaming' })
@@ -77,6 +81,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
           set({ phase: 'failed', error: { code: ev.data.code, message: ev.data.message } })
         }
       })
+      if (pendingCitations.length > 0) {
+        patchLast((m) => ({ ...m, citations: pendingCitations }))
+      }
+      // 流可能在没有 done / error 的情况下就结束（代理掐断、后端被重启、网络抖动）：
+      // 那时 phase 会停在 streaming，界面就是一个永远闪烁的光标 + 空白卡片。
+      // 这里做收口：有内容按完成处理，没内容按失败处理，至少给用户一个明确状态。
+      const phaseAfter = get().phase
+      if (phaseAfter === 'streaming' || phaseAfter === 'searching') {
+        const last = get().messages[get().messages.length - 1]
+        if (!last || !last.content.trim()) {
+          set({ phase: 'failed', error: { code: 'STREAM_INTERRUPTED', message: '回答中断，请重试' } })
+        } else {
+          set({ phase: 'done' })
+        }
+      }
       if (get().phase !== 'failed') void get().loadHistory()
     } catch (err) {
       set({ phase: 'failed', error: { code: 'INTERNAL_ERROR', message: (err as Error).message } })
