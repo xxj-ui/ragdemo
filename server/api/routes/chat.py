@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from server.api.deps import get_container
-from server.core.errors import AppError
+from server.core.errors import AppError, NotFoundError
 from server.api.schemas import ChatRequest
 from server.services import chat
 
@@ -25,5 +25,10 @@ async def chat_stream(payload: ChatRequest):
         raise AppError("QUESTION_EMPTY")
     if len(question) > 500:
         raise AppError("QUESTION_TOO_LONG")
-    stream = chat.ask_stream(get_container(), question)
+    container = get_container()
+    conversation_id = payload.conversation_id
+    # 会话不存在要在流建立之前返回 404（04 §4.4 的关键区分：流前用状态码）
+    if conversation_id is not None and not chat.conversation_exists(container, conversation_id):
+        raise NotFoundError("CONVERSATION_NOT_FOUND")
+    stream = chat.ask_stream(container, question, conversation_id)
     return StreamingResponse(stream, media_type="text/event-stream; charset=utf-8", headers=SSE_HEADERS)

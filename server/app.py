@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -14,8 +15,11 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from server.api.deps import get_container, set_container
+from server.core import migrations_check
+from server.core.config import PROJECT_ROOT
 from server.core.errors import AppError, error_body
 from server.core.logging import new_request_id, request_id_ctx, setup_logging
+from server.services import warmup
 from server.api.routes import chat, conversations, documents, health
 
 logger = logging.getLogger("ragdemo.app")
@@ -27,6 +31,14 @@ async def lifespan(app: FastAPI):
     # P-3：RAG_DB_DSN 缺失即启动失败
     container = get_container()
     logger.info("startup: host=%s port=%s", container.settings.host, container.settings.port)
+    # 03 §6.7 规则 4：只校验迁移版本并告警，不在启动时隐式改库
+    migrations_check.warn_if_behind(
+        container.settings.db_dsn, PROJECT_ROOT / "scripts" / "sql" / "migrations"
+    )
+    # M8 启动预热：**同步**做掉模型加载 / BM25 构建 / 解析库 import，
+    # lifespan 返回前 uvicorn 不接管请求 → "能连上" 就等于 "能干活"。
+    if container.settings.warmup_enabled:
+        await asyncio.to_thread(warmup.run_blocking, container)
     try:
         yield
     finally:

@@ -15,7 +15,7 @@ ERROR_CODES: dict[str, tuple[int, str]] = {
     "VALIDATION_ERROR": (422, "参数校验失败"),
     "QUESTION_EMPTY": (422, "问题不能为空"),
     "QUESTION_TOO_LONG": (422, "问题不能超过 500 字"),
-    "TOO_MANY_FILES": (422, "每次只能上传 1 个文件，请逐个提交"),
+    "TOO_MANY_FILES": (422, "文件数量超出上限，请分批提交"),
     "PAYLOAD_TOO_LARGE": (413, "请求体过大"),
     # 文件类（出现在 data.items[].error 内，不改变 HTTP 状态码）
     "UNSUPPORTED_FILE_TYPE": (400, "不支持的文件类型"),

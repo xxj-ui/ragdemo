@@ -13,13 +13,16 @@ export type ChatEvent =
 
 export async function streamChat(
   question: string,
+  conversationId: number | null,
   onEvent: (e: ChatEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
+  // 04 §4.4 / 10.多轮会话设计 §10.1：不传 = 新建会话；传了 = 续在该会话后追加一轮
+  const body = conversationId === null ? { question } : { question, conversation_id: conversationId }
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify(body),
     signal,
   })
 

@@ -1,0 +1,105 @@
+# ragdemo 基础服务编排：PostgreSQL(pgvector) + MinIO
+#
+# 用法（在项目根、bash 里）：
+#   cp .env.example .env      # 首次：填好密码，.env 已在 .gitignore 中
+#   docker compose up -d      # 起 pgvector + minio + 一次性建桶
+#   docker compose ps         # 看健康状态
+#   docker compose down       # 停止（数据留在命名卷 rag-pgdata / minio-data 里）
+#
+# 约定：
+#   1. 本文件只编排基础服务，不含应用本身 —— 后端仍跑在宿主机（uvicorn 单 worker）。
+#   2. 项目当前仍把原文件写本地 data/uploads/；MinIO 是**预置基础设施**，
+#      要真正用上需另做存储层改造（见 docs/design/06.遗留问题清单.md §11）。
+#   3. 其他应用要共用这个 MinIO：加入外部网络 infra-net，连 http://minio:9000，
+#      各自用独立 bucket + 独立 access key（不要共用这里的 root 凭证）。
+#   4. 端口一律绑 127.0.0.1，符合 SRS D-8「仅本机、不开放局域网」。
+
+name: ragdemo
+
+services:
+  pgvector:
+    image: pgvector/pgvector:pg17
+    container_name: ragdemo-pg
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ragdemo}
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请先 cp .env.example .env 并填写 POSTGRES_PASSWORD}
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:54328:5432"          # 沿用既有 DSN 端口，后端配置零改动
+    volumes:
+      - rag-pgdata:/var/lib/postgresql/data
+      # 首次初始化（空卷）时自动建表；幂等脚本，重复执行无副作用
+      - ./scripts/sql/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      # 多轮会话迁移（V002）：新卷在基线之后按序执行；存量库不受影响（走 yoyo / 手工）
+      - ./scripts/sql/migrations/V002__multiturn_conversations.sql:/docker-entrypoint-initdb.d/20-multiturn.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - infra-net
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: ragdemo-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?请在 .env 填写 MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?请在 .env 填写 MINIO_ROOT_PASSWORD（至少 8 位）}
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:9000:9000"           # S3 API
+      - "127.0.0.1:9001:9001"           # 控制台
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      infra-net:
+        aliases:
+          - minio                       # 同网络的其他应用用 http://minio:9000
+
+  # 一次性作业：建 bucket + 关匿名访问 + 设配额；跑完即退出（restart: "no"）
+  minio-init:
+    image: minio/mc:latest
+    container_name: ragdemo-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-ragdemo}
+      MINIO_BUCKET_QUOTA: ${MINIO_BUCKET_QUOTA:-10GiB}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" &&
+        mc mb --ignore-existing "local/$${MINIO_BUCKET}" &&
+        mc anonymous set none "local/$${MINIO_BUCKET}" &&
+        mc quota set "local/$${MINIO_BUCKET}" --size "$${MINIO_BUCKET_QUOTA}"
+    restart: "no"
+    networks:
+      - infra-net
+
+volumes:
+  rag-pgdata:
+    name: rag-pgdata
+  minio-data:
+    name: minio-data
+
+networks:
+  # 固定网络名：其他项目的 compose 用 external: true 接进来即可共用 MinIO
+  infra-net:
+    name: infra-net
+    driver: bridge

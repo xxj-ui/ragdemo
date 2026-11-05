@@ -26,6 +26,7 @@ def probe(container: Any) -> dict:
         database = "error"
 
     model = getattr(container, "model_state", "loading")
+    warmup = getattr(container, "warmup_state", "idle")
     llm_key = "configured" if os.getenv("DEEPSEEK_API_KEY") else "missing"
 
     ok = database == "ok" and model == "loaded" and llm_key == "configured"
@@ -33,5 +34,6 @@ def probe(container: Any) -> dict:
         "status": "ok" if ok else "degraded",
         "database": database,
         "embedding_model": model,
+        "warmup": warmup,
         "llm_key": llm_key,
     }

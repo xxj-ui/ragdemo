@@ -6,7 +6,7 @@ from fastapi import APIRouter, File, Query, UploadFile
 from server.api.deps import get_container
 from server.core.errors import AppError
 from server.api.schemas import DocumentChunks, DocumentList, Envelope, UploadItem, UploadResult
-from server.services import documents
+from server.services import documents, indexing
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -25,6 +25,13 @@ async def upload_document(files: list[UploadFile] = File(..., description="1~20 
     for upload in files:
         result = await documents.upload(container, upload)
         items.append(UploadItem(**result))
+
+    # 导入成功才重建关键词索引，且**等它建完再返回**：
+    # 这样"导入成功"就等于"立刻可检索"，用户第一问不用再等 BM25 全量重建。
+    # 整批只重建一次（每传一个文件都重建的话，N 个文件要付 N 次全量成本）。
+    if any(item.status == "success" for item in items):
+        await indexing.rebuild_bm25(container)
+
     # 逐文件结果按请求顺序返回；单文件失败不影响其它文件（同一响应里逐行反馈）
     return Envelope(data=UploadResult(items=items))
 

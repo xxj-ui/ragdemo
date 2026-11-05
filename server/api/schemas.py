@@ -79,6 +79,8 @@ class DocumentChunks(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str
+    # 续聊目标；缺省/null = 新建会话（04 §4.4 / 10.多轮会话设计 §10.1）
+    conversation_id: int | None = None
 
 
 class CitationItem(BaseModel):
@@ -99,6 +101,7 @@ class ConversationListItem(BaseModel):
     id: int
     title: str
     created_at: str
+    updated_at: str          # 最近活动时间（FR-9：列表按它倒序）
 
 
 class ConversationList(BaseModel):
@@ -109,6 +112,7 @@ class ConversationDetail(BaseModel):
     id: int
     title: str
     created_at: str
+    updated_at: str
     messages: list[MessageItem]
 
 
@@ -116,4 +120,5 @@ class HealthData(BaseModel):
     status: str = Field(description="ok | degraded")
     database: str = Field(description="ok | error")
     embedding_model: str = Field(description="loaded | loading | failed")
+    warmup: str = Field(default="idle", description="idle | warming | ready | failed")
     llm_key: str = Field(description="configured | missing")

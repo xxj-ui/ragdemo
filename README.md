@@ -16,6 +16,23 @@
 | Node.js | 18+（M3 用） | 24.16.0 |
 | 模型缓存 | `BAAI/bge-small-zh-v1.5`（离线） | `D:\models\huggingface` |
 
+## 基础服务（Docker Compose）
+
+PostgreSQL(pgvector) 与 MinIO 已收进一个容器组，不用再手工 `docker run`：
+
+```bash
+cp .env.example .env      # 首次：填写 POSTGRES_PASSWORD / MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
+docker compose up -d      # 起 pgvector + minio，并自动建 bucket
+docker compose ps         # 看健康状态
+docker compose down       # 停止（数据留在命名卷 rag-pgdata / minio-data）
+```
+
+- 端口只绑 `127.0.0.1`：`54328`（PG）、`9000`（S3 API）、`9001`（MinIO 控制台）。
+- 空卷首次启动会自动执行 `scripts/sql/schema.sql` 建表；已有库要重跑就手工 `psql`。
+- `.env` 是**compose 用的**变量；后端仍读 `RAG_DB_DSN` 等环境变量，两者互不影响。
+- 原文件**默认写 MinIO**（bucket `ragdemo`，key 形如 `documents/<uuid>.md`），DB 里 `stored_path` 记 `s3://ragdemo/documents/...`；`RAG_STORAGE_BACKEND=local` 可回退到 `data/uploads/`。
+- 其他应用要共用这个 MinIO：加入外部网络 `infra-net`，连 `http://minio:9000`，各自用独立 bucket 与独立 access key。
+
 ## 快速开始
 
 ```bash
@@ -26,8 +43,10 @@ pip install -r requirements.txt
 export RAG_DB_DSN='postgresql://<user>:<password>@127.0.0.1:54328/ragdemo'   # 必填，缺失即启动失败
 export DEEPSEEK_API_KEY='sk-...'                                             # 问答需要
 
-# 3) 建表（幂等，可重复执行）
-psql "$RAG_DB_DSN" -f scripts/sql/schema.sql
+# 3) 建表 / 迁移（版本化，见 docs/design/03 §6.7）
+python scripts/migrate.py status    # 看哪些迁移已执行（A）／未执行（U）
+python scripts/migrate.py apply     # 新库：按序执行；存量库先用 mark 打基线
+# 旧方式（仅作全量快照参考）：psql "$RAG_DB_DSN" -f scripts/sql/schema.sql
 
 # 4) 启动后端（单 worker，不要加 --workers）
 scripts/run_dev.sh        # Windows: scripts\run_dev.bat
@@ -56,6 +75,8 @@ python -m server.main --ask "问题"            # 检索 + 大模型回答
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
 | `RAG_DB_DSN` | ✅ | PostgreSQL 连接串；缺失时构造仓储层即抛错（SRS 2.4.3） |
+| `RAG_STORAGE_BACKEND` | 否 | `local`（默认）或 `minio`：原文件存本地目录还是对象存储 |
+| `RAG_S3_ENDPOINT` / `RAG_S3_BUCKET` / `RAG_S3_ACCESS_KEY` / `RAG_S3_SECRET_KEY` | minio 后端必填 | MinIO 连接参数；本机 compose 的实际值在 `.env` 里（`MINIO_ROOT_*`、`MINIO_BUCKET`） |
 | `DEEPSEEK_API_KEY` | 问答必填 | 只从环境变量读取，不进日志/响应/前端 |
 | `HF_HOME`（可选） | — | 模型缓存位置，默认已指向 `D:\models\huggingface` |
 
@@ -73,7 +94,10 @@ ragdemo/
 ├── docs/            # 需求、SRS、设计 01~09、规范
 ├── prototype/       # 高保真原型（交互蓝本，只读参照）
 ├── scripts/         # sql/schema.sql、run_dev.*、run_web.*
-├── data/uploads/    # 原文件落盘（运行期生成，不进版本库）
+├── docker-compose.yml  # 基础服务：pgvector + MinIO（+ 一次性建桶）
+├── .env.example     # compose 变量模板（复制为 .env 后填写）
+├── data/uploads/    # 原文件（local 后端；运行期生成，不进版本库）
+├── data/tmp/        # 上传中转（minio 后端 put 完成后即删，不进版本库）
 └── tests/           # pytest（M1 起）
 ```
 

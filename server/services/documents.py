@@ -26,6 +26,7 @@ from psycopg_pool import PoolClosed, PoolTimeout
 from server.core import storage
 from server.core.errors import ERROR_CODES, DependencyUnavailable, NotFoundError
 from server.rag import embedder, loaders, splitter
+from server.services import indexing
 from server.core.timeutil import to_local_iso
 
 logger = logging.getLogger("ragdemo.document_service")
@@ -262,4 +263,6 @@ async def delete_document(container: Any, document_id: int) -> None:
 
         container.store.delete_ref(doc["stored_path"])
         container.bm25.invalidate()
+        # 删除不阻塞响应：后台重建，赶在用户下一次提问之前把索引恢复好
+        indexing.warm_in_background(container)
     logger.info("删除成功 doc_id=%s file=%s", document_id, doc["filename"])

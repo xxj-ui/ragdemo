@@ -5,8 +5,10 @@
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
+from server.core import storage
 from server.core.config import Settings, load_settings
 from server.db import pool as db_pool
 from server.db.chunks import PgChunkRepository
@@ -23,10 +25,27 @@ class Container:
         self._pool: Any = None
         self.documents = DocumentRepository(settings.db_dsn)
         self.conversations = ConversationRepository(settings.db_dsn)
-        self.chunks = PgChunkRepository(settings.db_dsn)
+        # 检索走连接池（02 S-09）：pool 惰性创建，首次检索时才建，不拖慢启动
+        self.chunks = PgChunkRepository(settings.db_dsn, pool_factory=self.pool)
         self.bm25 = Bm25Index()
+        # 原文件存储后端（local / minio）：进程内建一次，上传、覆盖、删除共用
+        self.store = storage.build_store(settings)
+        # 写锁（04 §3.7 并发写 / 02 S-01 单 worker）：上传、覆盖、删除串行，后到者等待而不是 500
+        self.write_lock = asyncio.Lock()
+        # 会话级锁（10.多轮会话设计 §9）：同一会话的提问串行，避免两轮交错写库
+        self.chat_locks: dict[int, asyncio.Lock] = {}
         # 进程内状态位，供 /api/health 读取（02 §2.6）
         self.model_state: str = "loading"
+        # 启动预热状态（M8）：idle | warming | ready | failed
+        self.warmup_state: str = "idle"
+
+    def conversation_lock(self, conversation_id: int) -> asyncio.Lock:
+        """取某个会话的锁（惰性创建）。会话数量级小（本机单用户），先不做回收。"""
+        lock = self.chat_locks.get(conversation_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            self.chat_locks[conversation_id] = lock
+        return lock
 
     def pool(self) -> Any:
         if self._pool is None:

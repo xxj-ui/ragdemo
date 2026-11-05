@@ -6,7 +6,7 @@
 
 - **目标**：本机单用户 Web 知识库问答（RAG），批量上传文档 + 基于知识库提问 + 引用来源 + 历史回看。
 - **技术栈**：FastAPI + PostgreSQL/pgvector + bge-small-zh-v1.5 + DeepSeek；前端 React + Vite + TS。
-- **现状**：后端按 5 个目录分层——`server/rag/`（纯算法：loaders / splitter / embedder / keyword_search / rrf / llm / bm25_index）、`server/db/`（所有 SQL：pool / documents / chunks / conversations）、`server/services/`（编排：documents / retrieval / chat / history / health）、`server/api/`（routes / schemas / deps）、`server/core/`（config / errors / logging / timeutil / storage），根目录只留 `app.py` 与 `main.py`，地图见 [server/README.md](server/README.md)，CLI 入口 `python -m server.main`；需求与设计已定稿：[SRS](docs/SRS.md) v0.7、[00 需求分析](docs/00.需求分析.md) v0.3、[01 功能模块](docs/design/01.功能模块梳理.md) v1.0、[02 整体架构](docs/design/02.整体架构设计.md) v0.13、[03 数据库](docs/design/03.数据库设计.md) v0.5、[04 API](docs/design/04.API接口设计.md) v0.5、[05 评审结果](docs/design/05.设计方案评审结果.md) v0.4、[06 遗留问题](docs/design/06.遗留问题清单.md) v0.10、[07 测试用例](docs/design/07.测试用例清单.md) v0.5、[08 性能基线](docs/design/08.性能基线实测.md) v0.3、[09 前端详细设计](docs/design/09.前端详细设计.md) v0.1；数据库 4 张表已在真库 `ragdemo` 落地（0 行），`scripts/sql/schema.sql` 幂等可重跑；`requirements.txt` 与启动脚本已就绪；**M1 + M2 已完成并在真库跑通**：M1 上传／列表／删除／健康检查，M2 问答 SSE（`citations` → `delta`* → `done`，首字节实测 1.64 s）／历史列表·详情·删除／BM25 进程内索引，共 74 项断言全通过（[07](docs/design/07.测试用例清单.md) §5）；**M3 前端已完成**：`web/` 两页应用（问答 / 知识库）接真实接口，浏览器实测 7 个场景 0 error，`vite build` 产出 JS 170 KB / CSS 21 KB；08 个接口 + 前端交互全部闭环。
+- **现状**：后端按 5 个目录分层——`server/rag/`（纯算法：loaders / splitter / embedder / keyword_search / rrf / llm / bm25_index）、`server/db/`（所有 SQL：pool / documents / chunks / conversations）、`server/services/`（编排：documents / retrieval / chat / history / health）、`server/api/`（routes / schemas / deps）、`server/core/`（config / errors / logging / timeutil / storage），根目录只留 `app.py` 与 `main.py`，地图见 [server/README.md](server/README.md)，CLI 入口 `python -m server.main`；需求与设计已定稿：[SRS](docs/SRS.md) v0.7、[00 需求分析](docs/00.需求分析.md) v0.3、[01 功能模块](docs/design/01.功能模块梳理.md) v1.0、[02 整体架构](docs/design/02.整体架构设计.md) v0.13、[03 数据库](docs/design/03.数据库设计.md) v0.5、[04 API](docs/design/04.API接口设计.md) v0.5、[05 评审结果](docs/design/05.设计方案评审结果.md) v0.4、[06 遗留问题](docs/design/06.遗留问题清单.md) v0.10、[07 测试用例](docs/design/07.测试用例清单.md) v0.5、[08 性能基线](docs/design/08.性能基线实测.md) v0.3、[09 前端详细设计](docs/design/09.前端详细设计.md) v0.1；数据库 4 张表已在真库 `ragdemo` 落地，**DDL 现由 `scripts/sql/migrations/`（yoyo-migrations）版本化管理**、`schema.sql` 降级为全量快照（见 [03 §6.7](docs/design/03.数据库设计.md)）；`requirements.txt` 与启动脚本已就绪；**M1 + M2 已完成并在真库跑通**：M1 上传／列表／删除／健康检查，M2 问答 SSE（`citations` → `delta`* → `done`，首字节实测 1.64 s）／历史列表·详情·删除／BM25 进程内索引，共 74 项断言全通过（[07](docs/design/07.测试用例清单.md) §5）；**M3 前端已完成**：`web/` 两页应用（问答 / 知识库）接真实接口，浏览器实测 7 个场景 0 error，`vite build` 产出 JS 170 KB / CSS 21 KB；08 个接口 + 前端交互全部闭环。
 - **权威文档**：
   - 需求分析：[docs/00.需求分析.md](docs/00.需求分析.md)（角色 / 场景 / 用例 / 优先级 / 追溯）
   - 需求规格：[docs/SRS.md](docs/SRS.md)（FR / NFR / BR / AC + 接口与数据契约）
@@ -86,10 +86,11 @@
 1. **分层纪律**：路由层只做参数校验与响应组装，不直接写 SQL；SQL 只出现在 repository 层；业务编排在 service 层。
 2. **密钥与连接串**：仅从环境变量读取，不得硬编码、不得进日志、不得进前端资源。
 3. **数据库**：遵循 [docs/rules/database-rules.md](docs/rules/database-rules.md)（小写下划线、自增主键、时间字段 `created_at`/`updated_at`、**禁止物理外键**、唯一性用唯一约束兜底）。
-4. **API**：遵循 [docs/rules/api-rules.md](docs/rules/api-rules.md)（名词路径、HTTP 方法语义、统一响应与错误码、列表统一分页结构、不得用 200 表示失败）。
-5. **参数集中配置**：检索 top_k / recall_k / RRF k、切分 size / overlap、文件大小与数量限制，统一放配置模块，不散落在各处。
-6. **日志**：上传、删除、检索耗时、生成耗时、异常必须可见；不打印全文、不打印密钥。
-7. 每完成一个里程碑，跑一遍 [docs/SRS.md](docs/SRS.md) 第 10 节对应验收项，结果如实汇报（未通过就写未通过）。
+4. **数据库变更（DDL）**：所有表结构变更**必须新增迁移文件**，禁止直接连库改表、禁止手改建表脚本代替迁移；命名 `V###__snake_case.sql`、只增不改、必配同名 `.rollback.sql`；存量库首次接入用 baseline 标记。细则见 [04 §5](docs/rules/database-rules.md) 与 [03 §6.7](docs/design/03.数据库设计.md)。
+5. **API**：遵循 [docs/rules/api-rules.md](docs/rules/api-rules.md)（名词路径、HTTP 方法语义、统一响应与错误码、列表统一分页结构、不得用 200 表示失败）。
+6. **参数集中配置**：检索 top_k / recall_k / RRF k、切分 size / overlap、文件大小与数量限制，统一放配置模块，不散落在各处。
+7. **日志**：上传、删除、检索耗时、生成耗时、异常必须可见；不打印全文、不打印密钥。
+8. 每完成一个里程碑，跑一遍 [docs/SRS.md](docs/SRS.md) 第 10 节对应验收项，结果如实汇报（未通过就写未通过）。
 
 ## 8. 测试与验收规则
 
@@ -117,6 +118,7 @@
 | 日期 | 变更 |
 | --- | --- |
 | 2026-11-02 | 新增第 3 节「项目设计阶段规则」、第 5 节「数据库设计规则」、第 6 节「API 接口设计规则」；原架构设计（3→4）、编码（4→7）、测试与验收（5→8）、待拍板事项（6→9）顺延编号，正文内容未改。 |
+| 2026-11-04 | §7 新增第 4 条「数据库变更（DDL）：所有表结构变更必须新增迁移文件，禁止直接连库改表」，原 4~7 条顺延为 5~8 条；§0 现状把「`schema.sql` 幂等可重跑」改为「DDL 由 `scripts/sql/migrations/`（yoyo）版本化管理、`schema.sql` 降为全量快照」；配套规则同步到 [docs/rules/database-rules.md](docs/rules/database-rules.md) §5。 |
 | 2026-11-02 | §0「现状」对齐到设计定稿状态（SRS v0.7、01~06 全部定稿、4 张表已落地）；§9 由「当前待拍板事项」改为「已裁决事项」，8 项全部给出结论与落点。规则条款未改动。 |
 | 2026-11-02 | §0 现状补记目录调整：RAG 内核收进 `server/rag/` 子包，CLI 入口保持 `python -m server.main`。 |
 | 2026-11-02 | §0 现状推进到 M1 + M2 + M3 全部完成（8 接口 + 前端两页、浏览器 0 error）；新增 `docs/design/09.前端详细设计.md`；同步 06/07 版本号。规则条款未改动。 |

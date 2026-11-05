@@ -11,6 +11,7 @@ export type ServiceState = 'ok' | 'degraded' | 'down' | 'unknown'
 interface HealthStore {
   state: ServiceState
   model: HealthData['embedding_model'] | 'unknown'
+  warmup: HealthData['warmup'] | 'unknown'
   llmKey: HealthData['llm_key'] | 'unknown'
   failures: number
   refresh: () => Promise<void>
@@ -19,6 +20,7 @@ interface HealthStore {
 export const useHealthStore = create<HealthStore>((set, get) => ({
   state: 'unknown',
   model: 'unknown',
+  warmup: 'unknown',
   llmKey: 'unknown',
   failures: 0,
   async refresh() {
@@ -27,6 +29,7 @@ export const useHealthStore = create<HealthStore>((set, get) => ({
       set({
         state: data.status === 'ok' ? 'ok' : 'degraded',
         model: data.embedding_model,
+        warmup: data.warmup ?? 'idle',
         llmKey: data.llm_key,
         failures: 0,
       })

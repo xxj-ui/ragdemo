@@ -58,17 +58,22 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data as T
 }
 
-/** 上传专用：multipart 不做 JSON header，且每次只传 1 个文件（04 Q2） */
-export async function uploadOne(file: File): Promise<UploadItem> {
+/**
+ * 上传专用：multipart 不做 JSON header。
+ * 一次请求提交整批（1~20 个，04 v0.6 / FR-1）：后端按提交顺序串行处理，
+ * 并在**整批结束后重建一次关键词索引**再返回 —— 所以前端要批量提交，
+ * 否则 N 个文件会触发 N 次 BM25 全量重建。
+ */
+export async function uploadMany(files: File[]): Promise<UploadItem[]> {
   const form = new FormData()
-  form.append('files', file)
+  for (const f of files) form.append('files', f)
   const res = await fetch(BASE + '/documents/upload', { method: 'POST', body: form })
   const body = (await res.json().catch(() => null)) as Envelope<{ items: UploadItem[] }> | null
   if (!res.ok || !body || body.code !== 'ok' || !body.data) {
     const code = body?.code ?? 'INTERNAL_ERROR'
     throw new ApiError(code, ERROR_TEXT[code] ?? body?.message ?? '上传失败', res.status)
   }
-  return body.data.items[0]
+  return body.data.items
 }
 
 export interface UploadItem {
@@ -177,5 +182,6 @@ export interface HealthData {
   status: 'ok' | 'degraded'
   database: 'ok' | 'error'
   embedding_model: 'loaded' | 'loading' | 'failed'
+  warmup: 'idle' | 'warming' | 'ready' | 'failed'
   llm_key: 'configured' | 'missing'
 }

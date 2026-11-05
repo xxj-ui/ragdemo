@@ -21,8 +21,6 @@ interface ChatState {
   messages: ChatMessage[]
   error: { code: string; message: string } | null
   conversationId: number | null
-  /** 打开的是历史会话（只读回放；继续提问会新建会话，后端一期一问一答） */
-  replaying: boolean
   history: ConversationListItem[]
   historyLoading: boolean
   ask: (question: string) => Promise<void>
@@ -37,7 +35,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   error: null,
   conversationId: null,
-  replaying: false,
   history: [],
   historyLoading: false,
 
@@ -45,11 +42,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const clean = question.trim()
     if (!clean || get().phase === 'searching' || get().phase === 'streaming') return
 
+    // 多轮：带上当前会话 id（打开历史会话后继续提问 = 追加到同一会话，FR-9）
     set((s) => ({
       phase: 'searching',
       error: null,
-      replaying: false,
-      conversationId: null,
       messages: [...s.messages, { role: 'user', content: clean, citations: [] },
                  { role: 'assistant', content: '', citations: [] }],
     }))
@@ -68,7 +64,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // 若立刻渲染，用户会先看到一排引用卡片、正文还是空的。
       // 这里只暂存，等回答流结束再挂到消息上（"先答完、再给来源"）。
       let pendingCitations: CitationItem[] = []
-      await streamChat(clean, (ev) => {
+      await streamChat(clean, get().conversationId, (ev) => {
         if (ev.event === 'citations') {
           pendingCitations = ev.data.items
           // 不切到 streaming：让"正在检索知识库…"一直显示到第一个字到达
@@ -78,7 +74,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         } else if (ev.event === 'done') {
           set({ phase: 'done', conversationId: ev.data.conversation_id })
         } else if (ev.event === 'error') {
-          set({ phase: 'failed', error: { code: ev.data.code, message: ev.data.message } })
+          // 会话被删除后继续提问：清掉 id，下次提问回到"新建会话"，用户不会卡在这条会话上
+          const gone = ev.data.code === 'CONVERSATION_NOT_FOUND'
+          set({ phase: 'failed', error: { code: ev.data.code, message: ev.data.message },
+                ...(gone ? { conversationId: null } : {}) })
         }
       })
       if (pendingCitations.length > 0) {
@@ -116,11 +115,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   async openConversation(id: number) {
     const detail = await getConversation(id)
+    // 打开历史会话后可直接续聊（不再只读回放）
     set({
       phase: 'done',
       error: null,
       conversationId: detail.id,
-      replaying: true,
       messages: detail.messages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -135,6 +134,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   newChat() {
-    set({ phase: 'idle', messages: [], error: null, conversationId: null, replaying: false })
+    set({ phase: 'idle', messages: [], error: null, conversationId: null })
   },
 }))

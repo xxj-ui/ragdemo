@@ -12,9 +12,12 @@ const LABEL: Record<string, string> = {
 
 export default function StatusPill() {
   useHealthPolling()
-  const { state, model, llmKey } = useHealthStore()
-  const detail =
-    state === 'ok'
+  const { state, model, warmup, llmKey } = useHealthStore()
+  const warming = warmup === 'warming'
+  const label = warming ? '模型预热中…' : LABEL[state]
+  const detail = warming
+    ? '正在后台加载向量模型与检索索引，预热完成后即可提问'
+    : state === 'ok'
       ? '数据库、向量模型与问答服务均正常'
       : [
           model === 'loading' ? '向量模型加载中' : '',
@@ -31,9 +34,9 @@ export default function StatusPill() {
   }, [state])
 
   return (
-    <span className={`status-pill is-${state}`} title={detail || LABEL[state]}>
+    <span className={`status-pill is-${warming ? 'warming' : state}`} title={detail || label}>
       <span className="status-dot" aria-hidden="true" />
-      <span>{LABEL[state] ?? LABEL.unknown}</span>
+      <span>{label ?? LABEL.unknown}</span>
     </span>
   )
 }

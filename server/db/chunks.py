@@ -32,19 +32,37 @@ def _to_vector_literal(vector: list[float]) -> str:
 
 
 class PgChunkRepository:
-    """rag_chunks 表的数据访问对象。"""
+    """rag_chunks 表的数据访问对象。
 
-    def __init__(self, dsn: str | None = None) -> None:
+    连接来源有两种（02 S-09）：
+      - 传了 `pool_factory`（Web 链路）：检索/统计走进程内连接池，复用连接；
+      - 没传（CLI / 一次性脚本）：每次 `psycopg.connect` 直连。
+    两条路径都用 `dict_row` 行工厂，返回值形状一致。
+    """
+
+    def __init__(self, dsn: str | None = None, pool_factory=None) -> None:
         self.dsn = _require_dsn(dsn)
+        self._pool_factory = pool_factory
 
     def _connect(self):
         try:
             import psycopg
+            from psycopg.rows import dict_row
         except ImportError as e:
             raise ImportError(
                 "缺少数据库驱动，请先安装：pip install 'psycopg[binary]'"
             ) from e
-        return psycopg.connect(self.dsn)
+        return psycopg.connect(self.dsn, row_factory=dict_row)
+
+    @contextmanager
+    def _reader(self):
+        """只读查询取连接：有池用池（省掉 TCP + 认证），无池直连。"""
+        if self._pool_factory is not None:
+            with self._pool_factory().connection() as conn:
+                yield conn
+            return
+        with self._connect() as own:
+            yield own
 
     # ------------------------------------------------------------------
     # 建表
@@ -52,7 +70,7 @@ class PgChunkRepository:
 
     def delete_by_source(self, source: str) -> int:
         """删除某个文件的旧数据（重新建库时用，保证幂等）。"""
-        with self._connect() as conn:
+        with self._reader() as conn:
             cur = conn.execute(
                 f"DELETE FROM {TABLE_NAME} WHERE source = %s", (source,)
             )
@@ -83,18 +101,18 @@ class PgChunkRepository:
             ORDER BY c.embedding <=> %s::vector
             LIMIT %s
         """
-        with self._connect() as conn:
+        with self._reader() as conn:
             rows = conn.execute(sql, (literal, literal, top_k)).fetchall()
 
         return [
             {
-                "id": row[0],
-                "source": row[1],
-                "page": row[2],
-                "chunk_index": row[3],
-                "content": row[4],
-                "filename": row[5],
-                "score": float(row[6]),
+                "id": row["id"],
+                "source": row["source"],
+                "page": row["page"],
+                "chunk_index": row["chunk_index"],
+                "content": row["content"],
+                "filename": row["filename"],
+                "score": float(row["score"]),
             }
             for row in rows
         ]
@@ -108,16 +126,16 @@ class PgChunkRepository:
             LEFT JOIN documents d ON d.id = c.document_id
             ORDER BY c.id
         """
-        with self._connect() as conn:
+        with self._reader() as conn:
             rows = conn.execute(sql).fetchall()
 
         return [
             {
-                "id": row[0],
-                "source": row[1],
-                "page": row[2],
-                "chunk_index": row[3],
-                "content": row[4],
+                "id": row["id"],
+                "source": row["source"],
+                "page": row["page"],
+                "chunk_index": row["chunk_index"],
+                "content": row["content"],
             }
             for row in rows
         ]
@@ -127,9 +145,9 @@ class PgChunkRepository:
     # ------------------------------------------------------------------
 
     def count(self) -> int:
-        with self._connect() as conn:
-            row = conn.execute(f"SELECT count(*) FROM {TABLE_NAME}").fetchone()
-        return row[0]
+        with self._reader() as conn:
+            row = conn.execute(f"SELECT count(*) AS n FROM {TABLE_NAME}").fetchone()
+        return row["n"]
 
 
     # ------------------------------------------------------------------

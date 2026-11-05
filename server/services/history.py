@@ -30,6 +30,7 @@ def list_conversations(container: Any, limit: int, offset: int) -> dict:
                 "id": row["id"],
                 "title": row["title"] or "",
                 "created_at": to_local_iso(row["created_at"]),
+                "updated_at": to_local_iso(row["updated_at"]),
             }
             for row in rows
         ]
@@ -48,6 +49,7 @@ def get_conversation(container: Any, conversation_id: int) -> dict:
         "id": row["id"],
         "title": row["title"] or "",
         "created_at": to_local_iso(row["created_at"]),
+        "updated_at": to_local_iso(row["updated_at"]),
         "messages": [
             {
                 "role": m["role"],

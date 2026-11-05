@@ -202,7 +202,7 @@ $$;
 -- ---------------------------------------------------------------------
 COMMENT ON TABLE  documents                IS '文档主表：一行对应一份已入库文件，同名覆盖沿用同一行';
 COMMENT ON COLUMN documents.filename       IS '原始文件名（保留大小写，唯一性按 lower() 判定）';
-COMMENT ON COLUMN documents.stored_path    IS '服务端生成的存储路径，相对项目根，如 data/uploads/<uuid>.pdf';
+COMMENT ON COLUMN documents.stored_path    IS '原文件位置：本地后端为相对项目根的路径（data/uploads/<uuid>.pdf），minio 后端为对象引用（s3://<bucket>/<prefix>/<uuid>.pdf）';
 COMMENT ON COLUMN documents.file_type      IS 'pdf / docx / md / txt / xlsx / csv';
 COMMENT ON COLUMN documents.file_size      IS '字节数，入库文件恒 > 0（空文件在前置校验被拒）';
 COMMENT ON COLUMN documents.chunk_count    IS '片段数冗余统计，与 rag_chunks 实际行数在同一事务内维护';

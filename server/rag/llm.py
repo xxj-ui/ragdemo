@@ -77,12 +77,23 @@ def format_context(chunks: list[dict]) -> str:
     return "\n\n".join(blocks)
 
 
-def build_messages(question: str, chunks: list[dict]) -> list[dict]:
+def build_messages(
+    question: str, chunks: list[dict], history: list[dict] | None = None
+) -> list[dict]:
+    """system + 历史（按角色交替）+ 最后一条 user（参考资料 + 本轮问题）。
+
+    历史**不进**"参考资料"区：混在一起会被模型当成证据，绕过 SYSTEM_PROMPT
+    第 1 条"只使用参考资料"（10.多轮会话设计 §6.3/§6.4）。
+    """
     context = format_context(chunks) if chunks else "（没有检索到任何资料）"
-    return [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"参考资料：\n{context}\n\n问题：{question}"},
-    ]
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for h in history or []:
+        role = h.get("role")
+        content = (h.get("content") or "").strip()
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": f"参考资料：\n{context}\n\n问题：{question}"})
+    return messages
 
 
 # ----------------------------------------------------------------------
@@ -166,6 +177,7 @@ async def answer(
     question: str,
     chunks: list[dict],
     stream: bool = False,
+    history: list[dict] | None = None,
     temperature: float = 0.3,
     max_tokens: int = 1024,
     timeout_first: float = 15.0,
@@ -176,7 +188,7 @@ async def answer(
     stream=True  返回**异步生成器**（需 `agen = await answer(...)` 再 `async for`）
     stream=False 返回完整字符串
     """
-    messages = build_messages(question, chunks)
+    messages = build_messages(question, chunks, history)
     if stream:
         return chat_stream(
             messages,

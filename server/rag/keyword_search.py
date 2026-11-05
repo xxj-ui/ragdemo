@@ -85,6 +85,11 @@ class BM25KeywordSearch:
     # 打分
     # ------------------------------------------------------------------
 
+    @property
+    def size(self) -> int:
+        """索引里的文档（片段）数。"""
+        return self._n
+
     def _idf(self, term: str) -> float:
         df = self._df.get(term, 0)
         if df == 0:
