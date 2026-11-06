@@ -1,24 +1,54 @@
 @echo off
-REM ragdemo åç«¯å¯åŠ¨è„šæœ¬ï¼ˆå• workerï¼Œ02 S-01ï¼‰
-REM ç”¨æ³•ï¼šscripts\run_dev.bat
-setlocal
+REM ragdemo ºó¶ËÆô¶¯½Å±¾£¨µ¥ worker£¬02 S-01£©
+REM ÓÃ·¨£ºscripts\run_dev.bat
+REM ×¢Òâ£º±¾ÎÄ¼ş±ØĞë±£´æÎª GBK/ANSI ±àÂë£¨cmd.exe ÔÚÖĞÎÄ Windows ÉÏ°´ GBK ¶Á .bat£©£»
+REM       ÈôÓÃ UTF-8 ±£´æ£¬ÖĞÎÄ×¢ÊÍ»á±»½âÎö³ÉÃüÁî²¢±¨¡¸²»ÊÇÄÚ²¿»òÍâ²¿ÃüÁî¡¹¡£
+setlocal enabledelayedexpansion
 
 cd /d "%~dp0.."
 
+REM ¡ª¡ª ·ÇÃô¸ĞÄ¬ÈÏÖµ£ºMinIO ËŞÖ÷¶Ë¿Ú 9100£¨ÈİÆ÷ÄÚÈÔ 9000£¬¼û docker-compose.yml£©¡ª¡ª
+if not defined RAG_STORAGE_BACKEND set "RAG_STORAGE_BACKEND=minio"
+if not defined RAG_S3_ENDPOINT set "RAG_S3_ENDPOINT=http://127.0.0.1:9100"
+if not defined RAG_S3_BUCKET set "RAG_S3_BUCKET=ragdemo"
+if not defined RAG_S3_REGION set "RAG_S3_REGION=us-east-1"
+
+REM ¡ª¡ª ´Ó .env ¶ÁÃÜÔ¿/ÕËºÅ£¨.env ÒÑ±» .gitignore ÅÅ³ı£¬Ö»ÔÚ±¾½ø³ÌÉúĞ§£©¡ª¡ª
+if exist ".env" (
+    for /f "usebackq eol=# tokens=1,* delims==" %%A in (".env") do (
+        if not "%%~A"=="" set "%%~A=%%~B"
+    )
+)
+
+REM ¡ª¡ª ÓÃ MinIO ÕËºÅ¶µµ× S3 Æ¾¾İ ¡ª¡ª
+if not defined RAG_S3_ACCESS_KEY if defined MINIO_ROOT_USER set "RAG_S3_ACCESS_KEY=!MINIO_ROOT_USER!"
+if not defined RAG_S3_SECRET_KEY if defined MINIO_ROOT_PASSWORD set "RAG_S3_SECRET_KEY=!MINIO_ROOT_PASSWORD!"
+
+REM ¡ª¡ª ÓÃ .env ÀïµÄ PG ¿ÚÁîÆ´ DSN£¨ÑØÓÃ¼ÈÓĞ 54328£©¡ª¡ª
+if not defined RAG_DB_DSN if defined POSTGRES_PASSWORD (
+    set "RAG_DB_DSN=postgresql://!POSTGRES_USER!:!POSTGRES_PASSWORD!@127.0.0.1:54328/!POSTGRES_DB!"
+)
+
+echo [ÅäÖÃ] RAG_STORAGE_BACKEND=%RAG_STORAGE_BACKEND%  RAG_S3_ENDPOINT=%RAG_S3_ENDPOINT%  RAG_S3_BUCKET=%RAG_S3_BUCKET%
+
 if "%RAG_DB_DSN%"=="" (
-    echo [é”™è¯¯] æœªè®¾ç½® RAG_DB_DSNã€‚ç¤ºä¾‹ï¼ˆä¸è¦æŠŠå¯†ç æäº¤è¿›ç‰ˆæœ¬åº“ï¼‰ï¼š
+    echo [´íÎó] Î´ÉèÖÃ RAG_DB_DSN¡£Ê¾Àı£¨²»Òª°ÑÃÜÂëÌá½»½ø°æ±¾¿â£©£º
     echo    set RAG_DB_DSN=postgresql://root:^<password^>@127.0.0.1:54328/ragdemo
     exit /b 1
 )
 if "%DEEPSEEK_API_KEY%"=="" (
-    echo [è­¦å‘Š] æœªè®¾ç½® DEEPSEEK_API_KEYï¼Œé—®ç­”æ¥å£ä¼šè¿”å› LLM_KEY_MISSINGã€‚
+    echo [¾¯¸æ] Î´ÉèÖÃ DEEPSEEK_API_KEY£¬ÎÊ´ğ½Ó¿Ú»á·µ»Ø LLM_KEY_MISSING¡£
+)
+if "%RAG_STORAGE_BACKEND%"=="minio" if "%RAG_S3_SECRET_KEY%"=="" (
+    echo [´íÎó] RAG_STORAGE_BACKEND=minio µ« RAG_S3_SECRET_KEY Îª¿Õ£¨.env ÀïÒ²Ã»ÓĞ MINIO_ROOT_PASSWORD£©¡£
+    exit /b 1
 )
 
 if not exist "server\app.py" (
-    echo [æœªå°±ç»ª] server\app.py å°šæœªå®ç°ï¼ˆM1 äº¤ä»˜ç‰©ï¼‰ã€‚
-    echo å½“å‰å¯ç”¨ CLI è‡ªæ£€ï¼špython -m server.main --help
+    echo [Î´¾ÍĞ÷] server\app.py ÉĞÎ´ÊµÏÖ£¨M1 ½»¸¶Îï£©¡£
+    echo µ±Ç°¿ÉÓÃ CLI ×Ô¼ì£ºpython -m server.main --help
     exit /b 2
 )
 
-echo [å¯åŠ¨] uvicorn server.app:app --host 127.0.0.1 --port 8000 --workers 1
+echo [Æô¶¯] uvicorn server.app:app --host 127.0.0.1 --port 8000 --workers 1
 python -m uvicorn server.app:app --host 127.0.0.1 --port 8000 --workers 1 --reload

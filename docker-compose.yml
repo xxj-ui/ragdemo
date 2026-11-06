@@ -52,8 +52,8 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?请在 .env 填写 MINIO_ROOT_PASSWORD（至少 8 位）}
       TZ: Asia/Shanghai
     ports:
-      - "127.0.0.1:9000:9000"           # S3 API
-      - "127.0.0.1:9001:9001"           # 控制台
+      - "127.0.0.1:9100:9000"           # S3 API（宿主 9100 → 容器 9000：避开其他项目的 9000）
+      - "127.0.0.1:9101:9001"           # 控制台（宿主 9101 → 容器 9001：避开其他项目的 9001）
     volumes:
       - minio-data:/data
     healthcheck:
