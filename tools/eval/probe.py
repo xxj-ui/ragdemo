@@ -108,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
     dataset_path = common.resolve_dataset(args.dataset) if args.dataset else DATASET
 
     os.environ["RAG_DB_DSN"] = pg_dsn()
-    os.environ.setdefault("HF_HOME", r"D:\models\huggingface")
+    os.environ.setdefault("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
 
     run_id = f"ret-{datetime.now():%Y%m%d-%H%M%S}"
     out_dir = ROOT / "evals" / "runs" / run_id

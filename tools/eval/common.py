@@ -38,26 +38,31 @@ def pg_dsn() -> str:
     return f"postgresql://root:{pw}@127.0.0.1:54328/ragdemo"
 
 
-def prepare_env() -> None:
-    """导入 server.* 之前必须完成：DSN、HF 缓存、项目根进 sys.path。"""
-    if str(ROOT) not in sys.path:
-        sys.path.insert(0, str(ROOT))
-    os.environ["RAG_DB_DSN"] = pg_dsn()
-    os.environ.setdefault("HF_HOME", r"D:\models\huggingface")
-
-
-def load_deepseek_key() -> None:
-    """DEEPSEEK_API_KEY 在 shell 里通常没有，从 Hermes 的 .env 兜底（不存在就跳过，由 llm 层报错）。"""
-    if os.getenv("DEEPSEEK_API_KEY"):
-        return
-    env_file = Path(r"D:/develop/Hermes/.env")
+def load_env_file() -> None:
+    """把项目根 .env 的键值注入环境变量（已存在的不覆盖）。.env 不入库。"""
+    env_file = ROOT / ".env"
     if not env_file.exists():
         return
     for line in env_file.read_text(encoding="utf-8").splitlines():
         line = line.strip()
-        if line.startswith("DEEPSEEK_API_KEY="):
-            os.environ["DEEPSEEK_API_KEY"] = line.split("=", 1)[1].strip().strip('"').strip("'")
-            return
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+
+
+def prepare_env() -> None:
+    """导入 server.* 之前必须完成：DSN、HF 缓存、项目根进 sys.path。"""
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    load_env_file()
+    os.environ["RAG_DB_DSN"] = pg_dsn()
+    os.environ.setdefault("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
+
+
+def load_deepseek_key() -> None:
+    """DEEPSEEK_API_KEY 由环境变量或项目根 .env 提供，都没有就跳过（由 llm 层报错）。"""
+    load_env_file()
 
 
 # ---------------------------------------------------------------- 落盘与账目

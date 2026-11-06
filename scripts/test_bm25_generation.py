@@ -5,8 +5,9 @@
 """
 import logging
 import sys
+from pathlib import Path
 
-sys.path.insert(0, r"D:\Python-project\py_project01\ragdemo")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from server.rag.bm25_index import Bm25Index
 

@@ -2,7 +2,7 @@
 
 | 项目名称 | 知识库问答系统（RAG Knowledge Base QA） |
 | --- | --- |
-| 文档版本 | v0.16（8.2 与 FR-4 补**回答按 Markdown 渲染**） |
+| 文档版本 | v0.17（公开前脱敏：模型缓存改由 HF_HOME 指定） |
 | 编写日期 | 2026-10-30 |
 | 文档状态 | 待评审 |
 | 适用范围 | 需求确认、开发排期、验收测试 |
@@ -107,7 +107,7 @@ FastAPI 服务（本机 127.0.0.1）
 | 后端 | Python 3.11+，FastAPI + Uvicorn |
 | 前端 | Node.js 18+，React + Vite + TypeScript |
 | 数据库 | PostgreSQL + pgvector（本机 Docker，端口 54328） |
-| 模型缓存 | `HF_HOME=D:\models\huggingface` |
+| 模型缓存 | `HF_HOME`（默认 `~/.cache/huggingface`） |
 | 网络 | 可访问 DeepSeek API |
 
 ### 2.4 设计约束
@@ -893,3 +893,4 @@ data: {"code": "LLM_TIMEOUT", "message": "大模型响应超时，请重试"}
 | v0.14 | 2026-11-05 | FR-7 的「启动预热」由**后台**改为**同步初始化**：解析库 import → 向量模型 → BM25 三项就绪后才对外服务，消除“端口已通但请求静默挂住”的窗口；实测启动 18.2~23.0 s（解析库 0.5~1.2 s / 模型 8.0~11.3 s / BM25 10.0 s）。失败不阻断启动（`warmup="failed"` + 首个请求退回懒加载）。接口与字段不变 | [docs/design/04.API接口设计.md](design/04.API接口设计.md) §4.8、[docs/design/06.遗留问题清单.md](design/06.遗留问题清单.md) §14 |
 | v0.15 | 2026-11-06 | FR-1 解析新增**扫描件 OCR 兜底**：无文字层的 PDF 页按页渲染 + RapidOCR（PP-OCRv4，纯 CPU）识别；1.2 范围去掉「不含扫描件」限制、前置假设与异常表同步改写。OCR 可关闭（`RAG_OCR=0`）、可限页（`RAG_OCR_MAX_PAGES`），默认 DPI 120；实测单页 1.1~2.9 s、字符相似度 0.99，对带文字层的 PDF 零影响（0.09 s 走原路径） | [server/rag/loaders.py](../server/rag/loaders.py) `load_pdf`、[docs/design/02.整体架构设计.md](design/02.整体架构设计.md) |
 | v0.16 | 2026-11-06 | 8.2 问答页新增「助手回答按 Markdown（GFM）子集渲染，`[n]` 为上标徽章，用户气泡仍纯文本」；FR-4 回答规则新增排版约束（可用子集、禁用 HTML/图片、加粗内部不留空格）；新增 AC-16 验收项 | [docs/design/09.前端详细设计.md](design/09.前端详细设计.md) §8、[server/rag/llm.py](../server/rag/llm.py) `SYSTEM_PROMPT` |
+| v0.17 | 2026-11-06 | 2.3 运行环境「模型缓存」由硬编码本机路径改为 `HF_HOME`（默认 `~/.cache/huggingface`），为仓库公开做准备；无功能与接口变更 | [README.md](../README.md) |

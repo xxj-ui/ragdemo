@@ -11,10 +11,10 @@
 
 | 项 | 要求 | 本机实测 |
 | --- | --- | --- |
-| Python | 3.11+ | 3.13.9（`D:\develop\python`，依赖已全装） |
+| Python | 3.11+ | 3.13.9（依赖已全装） |
 | PostgreSQL | 15+ 且安装 pgvector | 17.10 + pgvector 0.8.5，容器 `pgvector`，端口 **54328** |
 | Node.js | 18+（M3 用） | 24.16.0 |
-| 模型缓存 | `BAAI/bge-small-zh-v1.5`（离线） | `D:\models\huggingface` |
+| 模型缓存 | `BAAI/bge-small-zh-v1.5`（离线） | 由 `HF_HOME` 指定（默认 `~/.cache/huggingface`） |
 
 ## 基础服务（Docker Compose）
 
@@ -78,7 +78,7 @@ python -m server.main --ask "问题"            # 检索 + 大模型回答
 | `RAG_STORAGE_BACKEND` | 否 | `local`（默认）或 `minio`：原文件存本地目录还是对象存储 |
 | `RAG_S3_ENDPOINT` / `RAG_S3_BUCKET` / `RAG_S3_ACCESS_KEY` / `RAG_S3_SECRET_KEY` | minio 后端必填 | MinIO 连接参数；本机 compose 的实际值在 `.env` 里（`MINIO_ROOT_*`、`MINIO_BUCKET`） |
 | `DEEPSEEK_API_KEY` | 问答必填 | 只从环境变量读取，不进日志/响应/前端 |
-| `HF_HOME`（可选） | — | 模型缓存位置，默认已指向 `D:\models\huggingface` |
+| `HF_HOME`（可选） | — | 模型缓存位置，默认 `~/.cache/huggingface` |
 | `RAG_OCR` | 否 | 扫描件 OCR 开关，默认 `1`（开）；`0` 关闭后无文字层的 PDF 页直接跳过 |
 | `RAG_OCR_DPI` | 否 | OCR 渲染分辨率，默认 `120`（实测 120 与 200 dpi 相似度 0.99 对 0.95） |
 | `RAG_OCR_MIN_CHARS` | 否 | 一页抽到的字符少于此值就判定为扫描页，默认 `10` |

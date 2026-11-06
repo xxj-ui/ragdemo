@@ -6,9 +6,9 @@
 
 import os
 
-# 模型缓存放在 D 盘，避免占用系统盘。
+# 模型缓存位置由 HF_HOME 决定；未设置时回退到 HuggingFace 标准缓存目录。
 # setdefault：如果系统里已经设了 HF_HOME，以系统值为准。
-os.environ.setdefault("HF_HOME", r"D:\models\huggingface")
+os.environ.setdefault("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
 
 MODEL_NAME = "BAAI/bge-small-zh-v1.5"
 EMBED_DIM = 512
