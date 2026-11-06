@@ -32,6 +32,8 @@
 
   --font-sans: system-ui, -apple-system, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas,
+    "Liberation Mono", Menlo, monospace;
 
   --sidebar-width: 276px;
   --topbar-height: 64px;
@@ -597,19 +599,210 @@ button:disabled {
   font-size: 14.5px;
   line-height: 1.75;
   color: var(--color-foreground);
-  white-space: pre-wrap;
   word-break: break-word;
+  /* 助手正文走 Markdown 渲染（09 §8），换行由块级元素决定，不再 pre-wrap；
+     用户气泡（.msg-user-bubble）仍是纯文本，保留 pre-wrap */
+  white-space: normal;
 }
 
-.msg-text.is-typing::after {
+/* 流式光标：贴在最后一个块级元素末尾（渲染后正文是多个块，不能挂在容器上） */
+.msg-text.is-typing > :last-child::after {
   content: "";
   display: inline-block;
   width: 2px;
   height: 1em;
-  margin-left: 2px;
+  margin-left: 3px;
   vertical-align: -2px;
   background: var(--color-accent);
   animation: blink 1s steps(1) infinite;
+}
+
+/* ------------------------------------------------------------
+   回答的 Markdown 排版（09 §8）：标题/列表/代码/引用/表格/徽章
+   中性灰 + 单强调色，不加渐变，贴合整体纸感
+   ------------------------------------------------------------ */
+.msg-text.md > :first-child {
+  margin-top: 0;
+}
+
+.msg-text.md > :last-child {
+  margin-bottom: 0;
+}
+
+.msg-text.md p {
+  margin: 0 0 10px;
+}
+
+.msg-text.md h3,
+.msg-text.md h4,
+.msg-text.md h5,
+.msg-text.md h6 {
+  margin: 16px 0 8px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.msg-text.md h3 {
+  font-size: 15.5px;
+}
+
+.msg-text.md h4 {
+  font-size: 14.8px;
+}
+
+.msg-text.md h5,
+.msg-text.md h6 {
+  font-size: 14.5px;
+  color: var(--color-muted-foreground);
+}
+
+.msg-text.md ul,
+.msg-text.md ol {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+
+.msg-text.md li {
+  margin: 4px 0;
+}
+
+.msg-text.md li::marker {
+  color: var(--color-subtle);
+}
+
+.msg-text.md li > p {
+  margin: 0 0 4px;
+}
+
+.msg-text.md ul ul,
+.msg-text.md ul ol,
+.msg-text.md ol ul,
+.msg-text.md ol ol {
+  margin: 4px 0 0;
+}
+
+/* GFM 任务列表：默认圆点会多一个，去掉并让复选框对齐文字 */
+.msg-text.md .task-list-item {
+  list-style: none;
+  margin-left: -18px;
+}
+
+.msg-text.md .task-list-item input {
+  margin: 0 6px 0 0;
+  vertical-align: -1px;
+}
+
+.msg-text.md strong {
+  font-weight: 600;
+}
+
+.msg-text.md em {
+  font-style: italic;
+}
+
+.msg-text.md del {
+  color: var(--color-subtle);
+}
+
+.msg-text.md code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  word-break: break-word;
+}
+
+/* 代码块：独立底色 + 等宽 + 横向滚动，不做语法高亮 */
+.msg-text.md pre {
+  margin: 0 0 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  overflow-x: auto;
+  line-height: 1.6;
+}
+
+.msg-text.md pre code {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font-size: 12.8px;
+  white-space: pre;
+}
+
+.msg-text.md blockquote {
+  margin: 0 0 10px;
+  padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--color-border-strong);
+  color: var(--color-muted-foreground);
+}
+
+.msg-text.md blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.msg-text.md .md-table-wrap {
+  margin: 0 0 10px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.msg-text.md table {
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.msg-text.md th,
+.msg-text.md td {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.msg-text.md th {
+  background: var(--color-background);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.msg-text.md a {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(37, 99, 235, 0.25);
+}
+
+.msg-text.md a:hover {
+  color: var(--color-accent-hover);
+  border-bottom-color: currentColor;
+}
+
+.msg-text.md hr {
+  margin: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.msg-text.md .md-img-stripped {
+  color: var(--color-subtle);
+  font-size: 13px;
+}
+
+/* [n] 引用编号：上标小徽章（只样式化，不可点） */
+.cite-badge {
+  display: inline-block;
+  margin: 0 1px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  vertical-align: super;
+  user-select: none;
 }
 
 .retrieval-status {

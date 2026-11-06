@@ -9,6 +9,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { LinkIcon, SparkIcon } from './icons'
+import AnswerMarkdown from './AnswerMarkdown'
 import { useChatStore } from '../state/chatStore'
 import type { CitationItem } from '../api/client'
 import { citationBody, citationMeta } from '../lib/format'
@@ -168,8 +169,8 @@ export default function MessageList() {
                     <span>正在检索知识库…</span>
                   </div>
                 ) : (
-                  <div className={`msg-text${streaming ? ' is-typing' : ''}`}>
-                    {m.content}
+                  <div className={`msg-text md${streaming ? ' is-typing' : ''}`}>
+                    <AnswerMarkdown text={m.content} />
                   </div>
                 )}
                 {m.citations.length > 0 ? (
