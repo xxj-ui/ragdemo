@@ -17,6 +17,8 @@ transformers==5.8.0
 torch==2.11.0
 numpy==2.4.3
 jieba==0.42.1
+# 关键词检索后端（稀疏矩阵 BM25；分词仍用上面的 jieba，bm25s 只负责打分）
+bm25s==0.3.16
 
 # 大模型（OpenAI 兼容协议，指向 DeepSeek）
 openai==2.32.0
@@ -31,3 +33,12 @@ yoyo-migrations==9.0.0
 pdfplumber==0.11.9
 python-docx==1.2.0
 openpyxl==3.1.5
+
+# 扫描件 OCR（PDF 某页没有文字层时触发；只在 PDF 解析路径用到）
+# 体积：rapidocr_onnxruntime 17 MB（含 PP-OCRv4 模型 16 MB）+ pyclipper 2 MB + shapely 7 MB ≈ 26 MB；
+#       onnxruntime / opencv / pypdfium2 / numpy / pillow 已在上面或传递依赖里，不额外增加
+# 实测（本机 CPU，120 dpi、关方向分类、8 线程）：初始化 0.6 s、首屏 2.9 s、之后 1.1~1.6 s/页、相似度 0.99
+rapidocr-onnxruntime==1.4.4
+pyclipper==1.4.0
+shapely==2.2.0
+pypdfium2==5.8.0
