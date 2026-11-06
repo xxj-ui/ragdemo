@@ -1,0 +1,24 @@
+# 评测依赖（P3：RAGAS 打分）——只装进独立环境，禁止装进项目环境
+#
+# 用法（Windows / 本项目实测）：
+#   uv venv tools/eval/.venv --python D:/develop/python/python.exe
+#   UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple \
+#     uv pip install --python tools/eval/.venv/Scripts/python.exe -r requirements-eval.txt
+#
+# 为什么必须钉 langchain<1：
+#   ragas 0.4.3 在 ragas/llms/base.py 里 import langchain_community.chat_models.vertexai，
+#   该模块在 langchain-community 1.x 已被删除。装成 1.x 会在 import ragas 时就
+#   ModuleNotFoundError（2026-11-05 实测）。ragas 的 requires_dist 对 langchain 不设上限，
+#   所以必须在应用侧自己钉死。
+#
+# 为什么不写 ragas[all]：会拖 torch / sentence-transformers（几百 MB），
+# 而 Faithfulness / ContextRecall 不需要 embedding；需要 AnswerRelevancy 时再单独装。
+#
+# openai 上限写 <3：langchain-openai 0.3.x 只兼容 openai 2.x（实测解析把 openai 从 3.3.0
+# 降回 2.54.0）。不写上界时换个解析器/镜像可能装成 3.x，报错会更难查。
+ragas==0.4.3
+langchain<1
+langchain-core<1
+langchain-community<0.4
+langchain-openai<1
+openai>=1.0,<3

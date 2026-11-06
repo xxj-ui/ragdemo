@@ -1,0 +1,92 @@
+{
+  "created_at": "2026-11-05T15:00:12+08:00",
+  "purpose": "E1 基线评测集 + 全量合格池（CRUD-RAG questanswer_1/2/3docs）",
+  "criterion": {
+    "backable": "40 字不重叠窗，能在两份语料正文拼接中找到的比例（≥0.8）",
+    "best_chunk": "单块覆盖该 gold 的 30 字窗（步长 10）的最高比例（≥0.5）",
+    "reason": "v1 用「30 字窗 × 4 偏移命中任意一处」，会把只有片段重合的题误判为可测（e1-001 实际只覆盖 45%）"
+  },
+  "source": {
+    "path": "data/CRUD_RAG/data/crud_split/split_merged.json",
+    "size_bytes": 26866460,
+    "sha256": "b199fb281ac526c1c8da7364cad7ea22b7f6fe1d4167e511edbdda8ad3bd943a"
+  },
+  "corpus": {
+    "files": [
+      "documents_dup_part_12_part_1.txt",
+      "documents_dup_part_12_part_2.txt"
+    ],
+    "sha256": {
+      "documents_dup_part_12_part_1.txt": "c1d8ed326cf93a5be69ca57704951a04eb0ca88b1335a167474672577263475d",
+      "documents_dup_part_12_part_2.txt": "6499e2fc6fa00b1d7ca9aff63f71f917b7e627c8cd76f792c3b734beb873a54a"
+    },
+    "db_chunks": 8935,
+    "db_docs": 2
+  },
+  "pool_stats": {
+    "questanswer_1doc": {
+      "total": 800,
+      "usable": 13,
+      "dropped": 787,
+      "distinct_events": 13
+    },
+    "questanswer_2docs": {
+      "total": 797,
+      "usable": 141,
+      "dropped": 656,
+      "distinct_events": 141
+    },
+    "questanswer_3docs": {
+      "total": 797,
+      "usable": 105,
+      "dropped": 692,
+      "distinct_events": 105
+    }
+  },
+  "sampling": {
+    "strategy": "合格池内按子集等比 + 同 event 全局去重 + 固定 seed",
+    "seed": 20261105,
+    "quota": {
+      "1doc": 2,
+      "2doc": 16,
+      "3doc": 12
+    }
+  },
+  "output": {
+    "e1": {
+      "file": "evals/datasets/e1-dataset.jsonl",
+      "records": 30
+    },
+    "pool": {
+      "file": "evals/datasets/crud-pool-usable.jsonl",
+      "records": 259,
+      "note": "同 ID 会在不同子集各出现一次（CRUD-RAG 源数据如此），池内 103 个 id 重复；唯一键是 (id, subset)",
+      "unique_ids": 153
+    },
+    "fields": [
+      "sample_id",
+      "id",
+      "subset",
+      "subset_label",
+      "user_input",
+      "reference",
+      "gold_news",
+      "n_gold",
+      "coverage"
+    ],
+    "superseded_file": "evals/datasets/_superseded/e1-dataset.v1.jsonl"
+  },
+  "superseded": {
+    "note": "v1 数据集（30 题，4 偏移口径）已作废；7 题不合格见 11.RAG评测设计 §11.2",
+    "dropped_ids": [
+      "e1-001",
+      "e1-003",
+      "e1-004",
+      "e1-005",
+      "e1-007",
+      "e1-011",
+      "e1-026"
+    ]
+  },
+  "warning": "reference / gold_news / coverage 只给评测脚本与裁判用，禁止导入知识库（会泄露标准答案）"
+}
