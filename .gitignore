@@ -4,6 +4,8 @@ data/uploads/
 data/tmp/
 # 评测语料（CRUD-RAG 95 文件 / 324 MB，内容快照，按需重新拉取）
 data/CRUD_RAG/
+# 评测跑测产物（一次性结果，不进版本库；数据集与代码照常入库）
+evals/runs/
 *.dump
 *.zip
 

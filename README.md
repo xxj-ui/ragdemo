@@ -27,7 +27,7 @@ docker compose ps         # 看健康状态
 docker compose down       # 停止（数据留在命名卷 rag-pgdata / minio-data）
 ```
 
-- 端口只绑 `127.0.0.1`：`54328`（PG）、`9000`（S3 API）、`9001`（MinIO 控制台）。
+- 端口只绑 `127.0.0.1`：`54328`（PG）、`9100`（S3 API）、`9101`（MinIO 控制台）。
 - 空卷首次启动会自动执行 `scripts/sql/schema.sql` 建表；已有库要重跑就手工 `psql`。
 - `.env` 是**compose 用的**变量；后端仍读 `RAG_DB_DSN` 等环境变量，两者互不影响。
 - 原文件**默认写 MinIO**（bucket `ragdemo`，key 形如 `documents/<uuid>.md`），DB 里 `stored_path` 记 `s3://ragdemo/documents/...`；`RAG_STORAGE_BACKEND=local` 可回退到 `data/uploads/`。
@@ -79,6 +79,10 @@ python -m server.main --ask "问题"            # 检索 + 大模型回答
 | `RAG_S3_ENDPOINT` / `RAG_S3_BUCKET` / `RAG_S3_ACCESS_KEY` / `RAG_S3_SECRET_KEY` | minio 后端必填 | MinIO 连接参数；本机 compose 的实际值在 `.env` 里（`MINIO_ROOT_*`、`MINIO_BUCKET`） |
 | `DEEPSEEK_API_KEY` | 问答必填 | 只从环境变量读取，不进日志/响应/前端 |
 | `HF_HOME`（可选） | — | 模型缓存位置，默认已指向 `D:\models\huggingface` |
+| `RAG_OCR` | 否 | 扫描件 OCR 开关，默认 `1`（开）；`0` 关闭后无文字层的 PDF 页直接跳过 |
+| `RAG_OCR_DPI` | 否 | OCR 渲染分辨率，默认 `120`（实测 120 与 200 dpi 相似度 0.99 对 0.95） |
+| `RAG_OCR_MIN_CHARS` | 否 | 一页抽到的字符少于此值就判定为扫描页，默认 `10` |
+| `RAG_OCR_MAX_PAGES` | 否 | 单份文档最多 OCR 多少页，默认 `0`（不限制）；超长扫描件建议设 50~100 防导入过慢 |
 
 ## 目录
 

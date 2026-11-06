@@ -8,10 +8,10 @@
 - **技术栈**：FastAPI + PostgreSQL/pgvector + bge-small-zh-v1.5 + DeepSeek；前端 React + Vite + TS。
 - **现状**：
   - **目录**：后端 5 层——`server/rag/`（纯算法：loaders / splitter / embedder / keyword_search / rrf / llm / bm25_index）、`server/db/`（所有 SQL：pool / documents / chunks / conversations）、`server/services/`（编排：documents / retrieval / chat / history / health / indexing / warmup）、`server/api/`（routes / schemas / deps）、`server/core/`（config / errors / logging / timeutil / storage / migrations_check），根目录只留 `app.py` 与 `main.py`，地图见 [server/README.md](server/README.md)，CLI 入口 `python -m server.main`。
-  - **已交付**：上传／列表／删除／健康检查、问答 SSE（`citations` → `delta`* → `done`）、历史列表·详情·删除、前端两页（`web/`，问答 + 知识库）、文档片段只读预览（FR-8）、多轮会话（FR-9，历史 5 轮 · ≤4000 字符）、MinIO 对象存储后端、yoyo 版本化迁移、BM25 预热与竞态修复、检索连接池化、启动同步初始化。**9 个接口 + 前端交互闭环**。
+  - **已交付**：上传／列表／删除／健康检查、问答 SSE（`citations` → `delta`* → `done`）、历史列表·详情·删除、前端两页（`web/`，问答 + 知识库）、文档片段只读预览（FR-8）、多轮会话（FR-9，历史 5 轮 · ≤4000 字符）、回答按 Markdown(GFM) 子集渲染（`react-markdown` + `remark-gfm`，含 `**xxx **` 容错与 `[n]` 上标徽章）、MinIO 对象存储后端、yoyo 版本化迁移、BM25 预热与竞态修复、检索连接池化、启动同步初始化、扫描件 PDF 的 OCR 兜底（RapidOCR + pypdfium2，SRS FR-1）。**9 个接口 + 前端交互闭环**。
   - **基础设施**：4 张表已落地真库 `ragdemo`；DDL 由 `scripts/sql/migrations/`（yoyo-migrations，V001 基线 + V002 多轮）版本化管理、`schema.sql` 降为全量快照（[03 §6.7](docs/design/03.数据库设计.md)），入口 `scripts/migrate.py`；`docker-compose.yml` 起 pgvector + MinIO（均绑 `127.0.0.1`）；`requirements.txt` 与启动脚本已就绪。
-  - **关键实测**：单次检索 **31.1 ms**（连接池化后，8,935 块；`search` 单项 4.04 ms）；SSE 首字节 **1.64 s**；启动同步初始化 **18.2~23.0 s**（解析库 0.5~1.2 s / 模型 8.0~11.3 s / BM25 10.0 s），三项就绪后才对外服务，预热期间客户端连不上（不是连上后阻塞）。累计断言：M1+M2 74 项、多轮 43 项、BM25 单测 16 项、前端 7 场景 0 error。
-  - **文档版本**：[SRS](docs/SRS.md) v0.14、[00 需求分析](docs/00.需求分析.md) v0.3、[01 功能模块](docs/design/01.功能模块梳理.md) v1.0、[02 整体架构](docs/design/02.整体架构设计.md) v0.17、[03 数据库](docs/design/03.数据库设计.md) v0.9、[04 API](docs/design/04.API接口设计.md) v0.11、[05 评审结果](docs/design/05.设计方案评审结果.md) v0.4、[06 遗留问题](docs/design/06.遗留问题清单.md) v0.23、[07 测试用例](docs/design/07.测试用例清单.md) v0.11、[08 性能基线](docs/design/08.性能基线实测.md) v0.3、[09 前端详细设计](docs/design/09.前端详细设计.md) v0.2、[10 多轮会话设计](docs/design/10.多轮会话设计.md) v0.3。
+  - **关键实测**：单次检索 **31.1 ms**（连接池化后，8,935 块；`search` 单项 4.04 ms）；SSE 首字节 **1.64 s**；启动同步初始化 **18.2~23.0 s**（解析库 0.5~1.2 s / 模型 8.0~11.3 s / BM25 10.0 s），三项就绪后才对外服务，预热期间客户端连不上（不是连上后阻塞）。累计断言：M1+M2 74 项、多轮 43 项、BM25 单测 16 项、前端 7 场景 0 error。OCR 实测：相似度 **0.99**、首屏 2.9 s 之后 **1.09~2.07 s/页**、3 页扫描件整链路 **6.5 s**、带文字层 PDF **0.09 s 零 OCR**。
+  - **文档版本**：[SRS](docs/SRS.md) v0.16、[00 需求分析](docs/00.需求分析.md) v0.3、[01 功能模块](docs/design/01.功能模块梳理.md) v1.0、[02 整体架构](docs/design/02.整体架构设计.md) v0.19、[03 数据库](docs/design/03.数据库设计.md) v0.9、[04 API](docs/design/04.API接口设计.md) v0.12、[05 评审结果](docs/design/05.设计方案评审结果.md) v0.4、[06 遗留问题](docs/design/06.遗留问题清单.md) v0.28、[07 测试用例](docs/design/07.测试用例清单.md) v0.12、[08 性能基线](docs/design/08.性能基线实测.md) v0.3、[09 前端详细设计](docs/design/09.前端详细设计.md) v0.3、[10 多轮会话设计](docs/design/10.多轮会话设计.md) v0.3。
 - **权威文档**：
   - 需求分析：[docs/00.需求分析.md](docs/00.需求分析.md)（角色 / 场景 / 用例 / 优先级 / 追溯）
   - 需求规格：[docs/SRS.md](docs/SRS.md)（FR / NFR / BR / AC + 接口与数据契约）
@@ -124,6 +124,9 @@
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-11-06 | §0「已交付」补**回答按 Markdown(GFM) 子集渲染**（`react-markdown` 9 + `remark-gfm` 4，含 `**xxx **` 容错与 `[n]` 上标徽章）；文档版本指针更新（SRS v0.16、04 v0.12、09 v0.3）。规则条款未改动。 |
+| 2026-11-06 | §0 文档版本指针更新（06 遗留问题 v0.28：新增 §17 B20，BM25 倒排查询 / 增量重建暂缓并登记触发阈值）。规则条款未改动。 |
+| 2026-11-06 | §0「现状」补扫描件 OCR（RapidOCR + pypdfium2，SRS FR-1 / 06 §15）：已交付与关键实测各补一条；文档版本指针 SRS v0.15、02 v0.18、06 v0.26。规则条款未改动。 |
 | 2026-11-05 | §0「现状」按目录 / 已交付 / 基础设施 / 关键实测 / 文档版本五项重写，补入多轮会话（FR-9）、文档预览（FR-8）、MinIO、yoyo 迁移、BM25 预热、检索连接池、启动同步初始化；接口数 8 → 9；「权威文档」补 09 前端详细设计、10 多轮会话设计；文档版本指针全线更新（SRS v0.14、02 v0.17、03 v0.9、04 v0.11、06 v0.23、07 v0.11、09 v0.2、10 v0.3）。规则条款未改动。 |
 | 2026-11-02 | 新增第 3 节「项目设计阶段规则」、第 5 节「数据库设计规则」、第 6 节「API 接口设计规则」；原架构设计（3→4）、编码（4→7）、测试与验收（5→8）、待拍板事项（6→9）顺延编号，正文内容未改。 |
 | 2026-11-04 | §7 新增第 4 条「数据库变更（DDL）：所有表结构变更必须新增迁移文件，禁止直接连库改表」，原 4~7 条顺延为 5~8 条；§0 现状把「`schema.sql` 幂等可重跑」改为「DDL 由 `scripts/sql/migrations/`（yoyo）版本化管理、`schema.sql` 降为全量快照」；配套规则同步到 [docs/rules/database-rules.md](docs/rules/database-rules.md) §5。 |
