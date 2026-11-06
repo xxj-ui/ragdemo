@@ -13,7 +13,49 @@
 支持的格式：txt / md / pdf / docx / xlsx / csv
 """
 
+import logging
+import threading
+import time
 from pathlib import Path
+
+logger = logging.getLogger("ragdemo.loaders")
+
+# ------------------------------------------------------------------
+# 扫描件 OCR：RapidOCR（PP-OCRv4，纯 CPU，模型随 wheel 内置）
+#   引擎是进程级单例（初始化约 0.6 s），只有真的遇到「无文字层」的页才加载
+# ------------------------------------------------------------------
+_ocr_engine = None
+_ocr_lock = threading.Lock()
+
+
+def _get_ocr_engine():
+    """懒加载 OCR 引擎；放在函数里 import，避免没装依赖时整个解析模块不可用。"""
+    global _ocr_engine
+    if _ocr_engine is None:
+        with _ocr_lock:
+            if _ocr_engine is None:
+                from rapidocr_onnxruntime import RapidOCR
+
+                # 关方向分类（扫描件基本都是正向）、8 线程：实测 1.1~2.9 s/页、相似度 0.99
+                _ocr_engine = RapidOCR(use_cls=False, intra_op_num_threads=8)
+    return _ocr_engine
+
+
+def _ocr_page(pdfium_doc, page_no: int, dpi: int, name: str) -> str:
+    """把第 page_no 页渲染成图再识别；失败返回空串（不阻断整篇导入）。"""
+    import numpy as np
+
+    started = time.perf_counter()
+    try:
+        pil = pdfium_doc[page_no - 1].render(scale=dpi / 72).to_pil()
+        result, _ = _get_ocr_engine()(np.array(pil))
+        text = "".join(item[1] for item in (result or [])).strip()
+    except Exception as exc:                      # 单页 OCR 失败不该让整份文件失败
+        logger.warning("OCR 失败 %s 第 %d 页：%s: %s", name, page_no, type(exc).__name__, exc)
+        return ""
+    logger.info("OCR %s 第 %d 页：%d 字，%.2f s", name, page_no, len(text), time.perf_counter() - started)
+    return text
+
 
 # ------------------------------------------------------------------
 # 各类型的 loader：只负责"把文件内容变成文本"
@@ -36,18 +78,52 @@ def load_txt(path: Path) -> list[dict]:
     return [{"text": text, "source": path.name, "page": None}]
 
 
-def load_pdf(path: Path) -> list[dict]:
-    """按页提取。没有文字层的页大概率是扫描件，先跳过并给出警告。"""
+def load_pdf(
+    path: Path,
+    *,
+    ocr: bool = True,
+    ocr_dpi: int = 120,
+    ocr_min_chars: int = 10,
+    ocr_max_pages: int = 0,
+) -> list[dict]:
+    """按页提取；某页几乎没有文字（扫描件）时按需走 OCR。
+
+    OCR 只在「该页抽到的字符 < ocr_min_chars」时触发：
+      * 渲染：pypdfium2（120 dpi，实测约 50 ms/页）
+      * 识别：RapidOCR（PP-OCRv4，本机 CPU 首屏 2.9 s（含引擎加载）、之后 1.1~1.6 s/页，字符相似度 0.99）
+    `ocr_max_pages > 0` 时最多 OCR 这么多页，避免超长扫描件把导入拖死；
+    `ocr=False` 时行为与旧版一致（跳过并告警）。
+    """
     import pdfplumber  # 延迟导入：只有加载 PDF 时才需要这个库
 
-    docs = []
-    with pdfplumber.open(path) as pdf:
-        for page_no, page in enumerate(pdf.pages, start=1):
-            text = (page.extract_text() or "").strip()
-            if len(text) < 10:
-                print(f"  [警告] {path.name} 第 {page_no} 页几乎没有文字，可能是扫描件（暂不做 OCR）")
-                continue
-            docs.append({"text": text, "source": path.name, "page": page_no})
+    docs: list[dict] = []
+    pdfium_doc = None
+    ocr_pages = 0
+    try:
+        with pdfplumber.open(path) as pdf:
+            for page_no, page in enumerate(pdf.pages, start=1):
+                text = (page.extract_text() or "").strip()
+                if len(text) < ocr_min_chars:
+                    if not ocr:
+                        logger.warning("%s 第 %d 页几乎没有文字（疑似扫描件），OCR 已关闭，跳过", path.name, page_no)
+                        continue
+                    if ocr_max_pages and ocr_pages >= ocr_max_pages:
+                        logger.warning("%s 第 %d 页需要 OCR，但已达上限 %d 页，跳过", path.name, page_no, ocr_max_pages)
+                        continue
+                    if pdfium_doc is None:
+                        import pypdfium2
+
+                        pdfium_doc = pypdfium2.PdfDocument(str(path))
+                    text = _ocr_page(pdfium_doc, page_no, ocr_dpi, path.name)
+                    ocr_pages += 1
+                if not text:
+                    continue
+                docs.append({"text": text, "source": path.name, "page": page_no})
+    finally:
+        if pdfium_doc is not None:
+            pdfium_doc.close()
+    if ocr_pages:
+        logger.info("%s 共 OCR %d 页", path.name, ocr_pages)
     return docs
 
 
@@ -148,12 +224,17 @@ LOADERS = {
 }
 
 
-def load(path: str | Path) -> list[dict]:
-    """加载单个文件。不支持的类型直接抛错，避免悄悄漏数据。"""
+def load(path: str | Path, **kwargs) -> list[dict]:
+    """加载单个文件。不支持的类型直接抛错，避免悄悄漏数据。
+
+    `**kwargs` 只对 PDF 有意义（OCR 开关/DPI/页数上限），其它格式忽略。
+    """
     path = Path(path)
     loader = LOADERS.get(path.suffix.lower())
     if loader is None:
         raise ValueError(f"不支持的文件类型: {path.suffix}（{path.name}）")
+    if loader is load_pdf:
+        return loader(path, **kwargs)
     return loader(path)
 
 

@@ -105,7 +105,14 @@ async def upload(container: Any, upload_file: Any) -> dict:
         return _item_error(filename, "EMPTY_FILE")
 
     try:
-        docs = await asyncio.to_thread(loaders.load, temp)
+        docs = await asyncio.to_thread(
+            loaders.load,
+            temp,
+            ocr=settings.ocr_enabled,
+            ocr_dpi=settings.ocr_dpi,
+            ocr_min_chars=settings.ocr_min_chars,
+            ocr_max_pages=settings.ocr_max_pages,
+        )
     except Exception as exc:
         logger.info("解析失败 file=%s err=%s", filename, exc)
         temp.unlink(missing_ok=True)

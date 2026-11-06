@@ -93,6 +93,14 @@ class Settings:
     embedding_model: str = "BAAI/bge-small-zh-v1.5"
     embedding_dim: int = 512
 
+    # 扫描件 OCR（FR-1 解析增强）：PDF 某页抽不到文字时，渲染成图走 RapidOCR
+    # 实测（本机 CPU）：引擎初始化 0.6 s、120 dpi 首屏 2.9 s、之后 1.1~1.6 s/页、字符相似度 0.99
+    # 用 RAG_OCR=0 可整体关闭；RAG_OCR_MAX_PAGES>0 时限制最多 OCR 多少页，防超长扫描件拖死导入
+    ocr_enabled: bool = True
+    ocr_dpi: int = 120
+    ocr_min_chars: int = 10
+    ocr_max_pages: int = 0
+
 
 def _env_bool(name: str, default: bool) -> bool:
     raw = os.getenv(name)
@@ -148,4 +156,8 @@ def load_settings() -> Settings:
         s3_secret_key=s3_secret_key,
         s3_prefix=(os.getenv("RAG_S3_PREFIX") or "documents").strip("/"),
         s3_region=(os.getenv("RAG_S3_REGION") or "us-east-1").strip(),
+        ocr_enabled=_env_bool("RAG_OCR", True),
+        ocr_dpi=_env_int("RAG_OCR_DPI", 120),
+        ocr_min_chars=_env_int("RAG_OCR_MIN_CHARS", 10),
+        ocr_max_pages=_env_int("RAG_OCR_MAX_PAGES", 0),
     )
