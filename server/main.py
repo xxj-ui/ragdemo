@@ -3,7 +3,7 @@
 解析预览走 `rag/` 纯算法；`--build` 与 HTTP 上传共用 `db/` 仓储与同一事务边界；
 `--ask` 走 `services/retrieval.py`，和未来的 `/api/chat` 是同一条检索链路。
 
-用法（在项目根目录 ragdemo/ 下）:
+用法（在项目根目录 zhiwen/ 下）:
     python -m server.main <文件或目录>            # 预览：加载 + 切分
     python -m server.main --build <文件或目录>    # 建库：加载 + 切分 + 向量化 + 入库
     python -m server.main --ask "问题"            # 问答：检索 + 大模型回答
@@ -221,7 +221,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if not paths:
         print(
-            "用法（在项目根目录 ragdemo/ 下）:\n"
+            "用法（在项目根目录 zhiwen/ 下）:\n"
             "  python -m server.main <文件或目录>            # 预览加载与切分\n"
             "  python -m server.main --build <文件或目录>    # 向量化并入库\n"
             "  python -m server.main --ask \"问题\"            # 检索 + 大模型回答"

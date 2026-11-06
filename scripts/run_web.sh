@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ragdemo 前端启动脚本（M3 交付物；web/ 尚未创建）
+# zhiwen 前端启动脚本（M3 交付物；web/ 尚未创建）
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

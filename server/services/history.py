@@ -13,7 +13,7 @@ from psycopg_pool import PoolClosed, PoolTimeout
 from server.core.errors import DependencyUnavailable, NotFoundError
 from server.core.timeutil import to_local_iso
 
-logger = logging.getLogger("ragdemo.history")
+logger = logging.getLogger("zhiwen.history")
 
 DB_ERRORS = (psycopg.OperationalError, PoolTimeout, PoolClosed)
 

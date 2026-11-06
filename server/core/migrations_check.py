@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-logger = logging.getLogger("ragdemo.migrations")
+logger = logging.getLogger("zhiwen.migrations")
 
 
 def _migration_ids(migrations_dir: Path) -> list[str]:

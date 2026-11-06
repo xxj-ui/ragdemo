@@ -1,8 +1,8 @@
 -- =====================================================================
--- ragdemo · 建表脚本
+-- zhiwen · 建表脚本
 -- 文件：scripts/sql/schema.sql
 -- 设计：docs/design/03.数据库设计.md v0.1
--- 目标：PostgreSQL + pgvector（本机 127.0.0.1:54328 / 库 ragdemo）
+-- 目标：PostgreSQL + pgvector（本机 127.0.0.1:54328 / 库 zhiwen）
 -- 用法：psql "$RAG_DB_DSN" -f scripts/sql/schema.sql
 --       本脚本含 psql 元命令 `\set ON_ERROR_STOP on`；若改用 psycopg 等客户端执行，
 --       请删除该行（事务已由 BEGIN/COMMIT 保证原子性）。

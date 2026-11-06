@@ -27,7 +27,7 @@ def pg_dsn() -> str:
     if os.getenv("RAG_DB_DSN"):
         return os.environ["RAG_DB_DSN"]
     out = subprocess.run(
-        ["docker", "inspect", "ragdemo-pg", "--format", "{{range .Config.Env}}{{println .}}{{end}}"],
+        ["docker", "inspect", "zhiwen-pg", "--format", "{{range .Config.Env}}{{println .}}{{end}}"],
         capture_output=True, text=True, encoding="utf-8",
     )
     if out.returncode != 0:
@@ -35,7 +35,7 @@ def pg_dsn() -> str:
     pw = next((ln.split("=", 1)[1] for ln in out.stdout.splitlines() if ln.startswith("POSTGRES_PASSWORD=")), None)
     if not pw:
         raise SystemExit("找不到 POSTGRES_PASSWORD")
-    return f"postgresql://root:{pw}@127.0.0.1:54328/ragdemo"
+    return f"postgresql://root:{pw}@127.0.0.1:54328/zhiwen"
 
 
 def load_env_file() -> None:

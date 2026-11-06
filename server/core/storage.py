@@ -15,7 +15,7 @@
 
 `stored_path` 的两种取值由 `delete_ref()` 分派，兼容历史行（混存期不必写迁移脚本）：
     data/uploads/<uuid>.pdf            本地文件，相对项目根
-    s3://ragdemo/documents/<uuid>.pdf  对象存储
+    s3://zhiwen/documents/<uuid>.pdf  对象存储
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from urllib.parse import quote
 
 from server.core.config import PROJECT_ROOT
 
-logger = logging.getLogger("ragdemo.storage")
+logger = logging.getLogger("zhiwen.storage")
 
 CHUNK = 1024 * 1024
 S3_SCHEME = "s3://"

@@ -4,7 +4,7 @@
     只负责和数据库打交道，不关心向量是怎么算出来的。
 
 连接串只从显式参数或环境变量读取（SRS 2.4.3：不得硬编码密码）：
-    RAG_DB_DSN=postgresql://<user>:<password>@127.0.0.1:54328/ragdemo
+    RAG_DB_DSN=postgresql://<user>:<password>@127.0.0.1:54328/zhiwen
 缺失即抛错，不做任何默认值兜底。
 """
 
@@ -19,7 +19,7 @@ def _require_dsn(explicit: str | None = None) -> str:
     if not dsn:
         raise RuntimeError(
             "未配置数据库连接串：请设置环境变量 RAG_DB_DSN，"
-            "形如 postgresql://<user>:<password>@127.0.0.1:54328/ragdemo"
+            "形如 postgresql://<user>:<password>@127.0.0.1:54328/zhiwen"
         )
     return dsn
 

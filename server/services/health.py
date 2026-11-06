@@ -9,7 +9,7 @@ import logging
 import os
 from typing import Any
 
-logger = logging.getLogger("ragdemo.health")
+logger = logging.getLogger("zhiwen.health")
 
 DB_PROBE_SQL = "SELECT 1"
 

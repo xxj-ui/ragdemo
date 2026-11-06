@@ -17,7 +17,7 @@ from typing import Any, Callable
 
 from server.rag.keyword_search import BM25KeywordSearch
 
-logger = logging.getLogger("ragdemo.bm25")
+logger = logging.getLogger("zhiwen.bm25")
 
 
 class Bm25Index:

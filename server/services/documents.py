@@ -29,7 +29,7 @@ from server.rag import embedder, loaders, splitter
 from server.services import indexing
 from server.core.timeutil import to_local_iso
 
-logger = logging.getLogger("ragdemo.document_service")
+logger = logging.getLogger("zhiwen.document_service")
 
 # 数据库侧故障统一映射成 503：连接失败 / 池超时 / 池已关闭
 DB_ERRORS = (psycopg.OperationalError, PoolTimeout, PoolClosed)

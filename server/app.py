@@ -22,7 +22,7 @@ from server.core.logging import new_request_id, request_id_ctx, setup_logging
 from server.services import warmup
 from server.api.routes import chat, conversations, documents, health
 
-logger = logging.getLogger("ragdemo.app")
+logger = logging.getLogger("zhiwen.app")
 
 
 @asynccontextmanager
@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="ragdemo · 知识库问答",
+        title="知问 · 个人知识库问答",
         version="0.1.0-skeleton",
         description="本机单用户知识库问答 API（骨架版：接口已定义，实现待 M1/M2）",
         lifespan=lifespan,

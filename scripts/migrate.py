@@ -27,7 +27,7 @@ def _dsn() -> str:
     """RAG_DB_DSN → yoyo 需要的 driver 形式（postgresql+psycopg://…）。"""
     raw = (os.getenv("RAG_DB_DSN") or "").strip()
     if not raw:
-        sys.exit("未配置 RAG_DB_DSN（形如 postgresql://user:pass@127.0.0.1:54328/ragdemo）")
+        sys.exit("未配置 RAG_DB_DSN（形如 postgresql://user:pass@127.0.0.1:54328/zhiwen）")
     if raw.startswith("postgresql+psycopg://"):
         return raw
     if raw.startswith("postgresql://"):

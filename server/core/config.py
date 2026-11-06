@@ -68,7 +68,7 @@ class Settings:
     storage_backend: str = "local"
     spool_dir: Path = PROJECT_ROOT / "data" / "tmp"
     s3_endpoint: str = ""
-    s3_bucket: str = "ragdemo"
+    s3_bucket: str = "zhiwen"
     s3_access_key: str = ""
     s3_secret_key: str = ""
     s3_prefix: str = "documents"
@@ -115,13 +115,13 @@ def load_settings() -> Settings:
     if not dsn:
         raise RuntimeError(
             "未配置数据库连接串：请设置环境变量 RAG_DB_DSN，"
-            "形如 postgresql://<user>:***@127.0.0.1:54328/ragdemo"
+            "形如 postgresql://<user>:***@127.0.0.1:54328/zhiwen"
         )
 
     # 存储后端：minio 时缺凭证直接启动失败，不要等到第一次上传才报错
     backend = (os.getenv("RAG_STORAGE_BACKEND") or "local").strip().lower()
     s3_endpoint = (os.getenv("RAG_S3_ENDPOINT") or "").strip()
-    s3_bucket = (os.getenv("RAG_S3_BUCKET") or "ragdemo").strip()
+    s3_bucket = (os.getenv("RAG_S3_BUCKET") or "zhiwen").strip()
     s3_access_key = (os.getenv("RAG_S3_ACCESS_KEY") or "").strip()
     s3_secret_key = (os.getenv("RAG_S3_SECRET_KEY") or "").strip()
     if backend == "minio":

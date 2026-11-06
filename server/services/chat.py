@@ -23,7 +23,7 @@ from server.core.errors import ERROR_CODES, DependencyUnavailable
 from server.rag import llm
 from server.services import retrieval
 
-logger = logging.getLogger("ragdemo.chat")
+logger = logging.getLogger("zhiwen.chat")
 
 DB_ERRORS = (psycopg.OperationalError, PoolTimeout, PoolClosed)
 

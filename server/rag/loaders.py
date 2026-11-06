@@ -18,7 +18,7 @@ import threading
 import time
 from pathlib import Path
 
-logger = logging.getLogger("ragdemo.loaders")
+logger = logging.getLogger("zhiwen.loaders")
 
 # ------------------------------------------------------------------
 # 扫描件 OCR：RapidOCR（PP-OCRv4，纯 CPU，模型随 wheel 内置）

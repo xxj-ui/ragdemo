@@ -29,7 +29,7 @@ import threading
 import time
 from typing import Any
 
-logger = logging.getLogger("ragdemo.warmup")
+logger = logging.getLogger("zhiwen.warmup")
 
 # 预热用的探针句：走和检索完全相同的 `embed_query` 路径（含 BGE 指令前缀），
 # 这样预热掉的是真实路径，而不是另一条捷径。

@@ -1,5 +1,5 @@
 @echo off
-REM ragdemo 后端启动脚本（单 worker，02 S-01）
+REM zhiwen 后端启动脚本（单 worker，02 S-01）
 REM 用法：scripts\run_dev.bat
 REM 注意：本文件必须保存为 GBK/ANSI 编码（cmd.exe 在中文 Windows 上按 GBK 读 .bat）；
 REM       若用 UTF-8 保存，中文注释会被解析成命令并报「不是内部或外部命令」。
@@ -10,7 +10,7 @@ cd /d "%~dp0.."
 REM —— 非敏感默认值：MinIO 宿主端口 9100（容器内仍 9000，见 docker-compose.yml）——
 if not defined RAG_STORAGE_BACKEND set "RAG_STORAGE_BACKEND=minio"
 if not defined RAG_S3_ENDPOINT set "RAG_S3_ENDPOINT=http://127.0.0.1:9100"
-if not defined RAG_S3_BUCKET set "RAG_S3_BUCKET=ragdemo"
+if not defined RAG_S3_BUCKET set "RAG_S3_BUCKET=zhiwen"
 if not defined RAG_S3_REGION set "RAG_S3_REGION=us-east-1"
 
 REM —— 从 .env 读密钥/账号（.env 已被 .gitignore 排除，只在本进程生效）——
@@ -33,7 +33,7 @@ echo [配置] RAG_STORAGE_BACKEND=%RAG_STORAGE_BACKEND%  RAG_S3_ENDPOINT=%RAG_S3_E
 
 if "%RAG_DB_DSN%"=="" (
     echo [错误] 未设置 RAG_DB_DSN。示例（不要把密码提交进版本库）：
-    echo    set RAG_DB_DSN=postgresql://root:^<password^>@127.0.0.1:54328/ragdemo
+    echo    set RAG_DB_DSN=postgresql://root:^<password^>@127.0.0.1:54328/zhiwen
     exit /b 1
 )
 if "%DEEPSEEK_API_KEY%"=="" (

@@ -1,4 +1,4 @@
-# ragdemo 基础服务编排：PostgreSQL(pgvector) + MinIO
+# zhiwen 基础服务编排：PostgreSQL(pgvector) + MinIO
 #
 # 用法（在项目根、bash 里）：
 #   cp .env.example .env      # 首次：填好密码，.env 已在 .gitignore 中
@@ -14,14 +14,14 @@
 #      各自用独立 bucket + 独立 access key（不要共用这里的 root 凭证）。
 #   4. 端口一律绑 127.0.0.1，符合 SRS D-8「仅本机、不开放局域网」。
 
-name: ragdemo
+name: zhiwen
 
 services:
   pgvector:
     image: pgvector/pgvector:pg17
-    container_name: ragdemo-pg
+    container_name: zhiwen-pg
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-ragdemo}
+      POSTGRES_DB: ${POSTGRES_DB:-zhiwen}
       POSTGRES_USER: ${POSTGRES_USER:-root}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请先 cp .env.example .env 并填写 POSTGRES_PASSWORD}
       TZ: Asia/Shanghai
@@ -45,7 +45,7 @@ services:
 
   minio:
     image: minio/minio:RELEASE.2023-03-20T20-16-18Z
-    container_name: ragdemo-minio
+    container_name: zhiwen-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?请在 .env 填写 MINIO_ROOT_USER}
@@ -71,14 +71,14 @@ services:
   # 一次性作业：建 bucket + 关匿名访问 + 设配额；跑完即退出（restart: "no"）
   minio-init:
     image: minio/mc:latest
-    container_name: ragdemo-minio-init
+    container_name: zhiwen-minio-init
     depends_on:
       minio:
         condition: service_healthy
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_BUCKET: ${MINIO_BUCKET:-ragdemo}
+      MINIO_BUCKET: ${MINIO_BUCKET:-zhiwen}
       MINIO_BUCKET_QUOTA: ${MINIO_BUCKET_QUOTA:-10GiB}
     entrypoint:
       - /bin/sh

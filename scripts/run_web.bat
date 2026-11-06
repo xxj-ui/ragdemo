@@ -1,5 +1,5 @@
 @echo off
-REM ragdemo 前端启动脚本（M3 交付物；web/ 尚未创建）
+REM zhiwen 前端启动脚本（M3 交付物；web/ 尚未创建）
 setlocal
 cd /d "%~dp0.."
 

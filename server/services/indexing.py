@@ -15,7 +15,7 @@ import logging
 import time
 from typing import Any
 
-logger = logging.getLogger("ragdemo.indexing")
+logger = logging.getLogger("zhiwen.indexing")
 
 
 async def rebuild_bm25(container: Any) -> float:
