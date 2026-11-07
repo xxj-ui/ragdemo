@@ -4,6 +4,16 @@
 
 ![问答界面](docs/images/qa-demo.png)
 
+## 核心功能
+
+| 能力 | 说明 |
+| --- | --- |
+| 上传解析 | PDF / Word / Markdown / TXT / Excel / CSV，扫描件自动 OCR |
+| 混合检索 | 向量召回 + BM25 关键词，RRF 按名次融合 |
+| 带引用回答 | 流式输出，每条结论标注来源片段；无依据时明确拒答 |
+| 多轮追问 | 保留最近 5 轮上下文 |
+| 文档管理 | 列表、删除、片段只读预览 |
+
 ## 设计与取舍
 
 **向量库就用 pgvector，不引入独立服务**
@@ -11,12 +21,6 @@
 
 **混合检索用 RRF，不给分数调权重**
 dense 与 BM25 的分数量纲不可比，线性加权要反复调参。RRF 只用名次融合，两路各取 top-20，零调参，且单路召回失效时另一路仍能兜住。
-
-**宁可启动等 20 秒，不要「端口通了但模型没就绪」**
-向量模型 8~11 s、BM25 10 s，同步初始化后约 18~23 s 才对外服务。换来的是任何请求都有确定延迟——不存在首个用户静默卡 105 秒、连得上却不干活的窗口。
-
-**BM25 用 bm25s，换之前先证明等价**
-自研实现换成熟库之前，先用 20 条真实问题验证：top-10 完全同序、无命中行为一致、16 项单测通过。分数整体缩放 0.4 倍，但 RRF 只看名次，链路无影响。
 
 **扫描件 PDF 走本地 OCR，不调云 API**
 RapidOCR + PP-OCRv4，依赖增量 26 MB，字符相似度 0.99，1.1~2.9 s/页；带文字层的 PDF 完全不受影响（0.09 s 走原路径）。代价是首次 0.6 s 引擎初始化。
@@ -33,8 +37,7 @@ server/api/           路由与请求校验（不写 SQL）
 server/services/      业务编排
   │
   ├─ server/rag/      纯算法：解析 / 切分 / 嵌入 / BM25 / RRF / 生成
-  ├─ server/db/       全部 SQL
-  └─ server/core/     配置 / 错误 / 日志 / 存储
+  └─ server/db + core 全部 SQL · 配置 / 错误 / 日志 / 存储
 ```
 
 一次问答经过：问句 → 嵌入 → dense top-k + BM25 top-k → RRF 融合 → 上下文拼装 → DeepSeek 流式 → SSE（`citations` → `delta`* → `done`）。
@@ -64,6 +67,16 @@ cd web && npm install && npm run dev    # 另开终端，访问 http://127.0.0.1
 
 需要 Python 3.11+、PostgreSQL 15+（装 pgvector）、Node.js 18+。首次运行会下载 `BAAI/bge-small-zh-v1.5`（约 95 MB）到 `HF_HOME`。全部环境变量见 [.env.example](.env.example)。
 
+## 界面
+
+**知识库**：上传文档后自动解析、切分、向量化。
+
+![知识库](docs/images/knowledge-base.png)
+
+**片段预览**：点开任一文档，逐片段查看入库原文。
+
+![片段预览](docs/images/preview.png)
+
 ## 技术栈
 
 | 层 | 选型 |
@@ -83,8 +96,7 @@ server/             后端单包，分层见上方架构图（地图见 server/R
 web/                前端：问答 / 知识库两页
 docs/               需求、SRS、设计 00~11、规范
 scripts/            迁移、启动脚本、建表 SQL
-prototype/          高保真原型（交互蓝本）
-evals/              评测数据集与跑测产物
+evals/              评测数据集
 tools/eval/         评测脚本（采集 / 指标 / RAGAS）
 ```
 
